@@ -1,0 +1,24 @@
+[package]
+name = "roma-timer"
+version = "0.1.0"
+edition = "2021"
+description = "A simple and beautiful Pomodoro timer web application"
+
+[[bin]]
+name = "roma-timer"
+path = "src/main.rs"
+
+[dependencies]
+# Web framework
+axum = "0.7"
+tokio = { version = "1.0", features = ["full"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["fs", "cors", "trace"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = "0.3"

@@ -1,0 +1,43 @@
+# Clippy configuration for Roma Timer
+# Enforce zero warnings policy
+
+# Avoid complex cognitive complexity
+cognitive-complexity-threshold = 10
+
+# Enforce proper documentation
+missing-docs-in-crate-items = true
+
+# Type complexity limits
+type-complexity-threshold = 250
+
+# Enforce proper error handling
+too-many-arguments-threshold = 7
+
+# Function size limits
+too-many-lines-threshold = 100
+
+# Enum variant size
+enum-variant-name-threshold = 3
+
+# Enforce naming conventions
+upper-case-acronyms-aggressive = true
+
+# Disallow specific patterns
+disallowed-names = ["foo", "bar", "baz", "qux"]
+
+# Require exhaustive match arms
+match-same-arms = true
+
+# Enforce proper borrowing
+borrowed-box = true
+
+# Memory safety
+mem-forget = true
+
+# Performance
+clone-on-ref-ptr = true
+redundant-clone = true
+
+# Code style
+similar-names = true
+unseparated-literal-suffix = true
