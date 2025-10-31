@@ -10,15 +10,42 @@ path = "src/main.rs"
 
 [dependencies]
 # Web framework
-axum = "0.7"
+axum = { version = "0.7", features = ["ws"] }
 tokio = { version = "1.0", features = ["full"] }
 tower = "0.4"
 tower-http = { version = "0.5", features = ["fs", "cors", "trace"] }
 
+# WebSocket support
+axum-extra = { version = "0.9", features = ["typed-header"] }
+futures-util = "0.3"
+tokio-tungstenite = "0.21"
+headers = "0.4"
+
 # Serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+
+# UUID generation
+uuid = { version = "1.0", features = ["v4", "serde"] }
 
 # Logging
 tracing = "0.1"
 tracing-subscriber = "0.3"
+
+# JSON file storage
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+
+# Authentication
+hmac = "0.12"
+sha2 = "0.10"
+hex = "0.4"
+base64 = "0.21"
+
+# HTTP client for webhooks
+reqwest = { version = "0.11", features = ["json"] }
+
+# Random number generation
+rand = "0.8"
+
+# URL parsing for WebSocket query parameters
+url = "2.5"

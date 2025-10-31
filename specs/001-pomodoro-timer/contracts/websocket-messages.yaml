@@ -1,0 +1,194 @@
+# WebSocket Message Contracts for Roma Timer
+
+## Message Format Overview
+
+All WebSocket messages use JSON format with a `type` field for message routing.
+
+## Server to Client Messages
+
+### TimerStateUpdate
+Sent when timer state changes (start, pause, tick, reset, skip, session completion).
+
+```json
+{
+  "type": "TimerStateUpdate",
+  "data": {
+    "id": "123e4567-e89b-12d3-a456-426614174000",
+    "duration": 1500,
+    "elapsed": 245,
+    "timerType": "Work",
+    "isRunning": true,
+    "createdAt": 1698569400,
+    "updatedAt": 1698569645
+  }
+}
+```
+
+### Notification
+Sent when timer events occur (session completion, etc.).
+
+```json
+{
+  "type": "Notification",
+  "data": {
+    "id": "456e7890-e89b-12d3-a456-426614174001",
+    "timerSessionId": "123e4567-e89b-12d3-a456-426614174000",
+    "eventType": "WorkSessionComplete",
+    "message": "Work session completed! Time for a break.",
+    "createdAt": 1698569645
+  }
+}
+```
+
+### ConfigurationUpdate
+Sent when user configuration is updated from any device.
+
+```json
+{
+  "type": "ConfigurationUpdate",
+  "data": {
+    "id": "789e0123-e89b-12d3-a456-426614174002",
+    "workDuration": 1500,
+    "shortBreakDuration": 300,
+    "longBreakDuration": 900,
+    "longBreakFrequency": 4,
+    "notificationsEnabled": true,
+    "webhookUrl": null,
+    "waitForInteraction": false,
+    "theme": "Dark",
+    "createdAt": 1698569400,
+    "updatedAt": 1698569700
+  }
+}
+```
+
+### ConnectionStatus
+Sent to indicate connection status changes.
+
+```json
+{
+  "type": "ConnectionStatus",
+  "data": {
+    "status": "Connected",
+    "message": "Successfully connected to Roma Timer",
+    "timestamp": 1698569400
+  }
+}
+```
+
+## Client to Server Messages
+
+### StartTimer
+Start or resume the current timer.
+
+```json
+{
+  "type": "StartTimer"
+}
+```
+
+### PauseTimer
+Pause the current timer.
+
+```json
+{
+  "type": "PauseTimer"
+}
+```
+
+### ResetTimer
+Reset timer to initial work session.
+
+```json
+{
+  "type": "ResetTimer"
+}
+```
+
+### SkipTimer
+Skip current session and move to next session type.
+
+```json
+{
+  "type": "SkipTimer"
+}
+```
+
+### UpdateConfiguration
+Update user configuration settings.
+
+```json
+{
+  "type": "UpdateConfiguration",
+  "data": {
+    "workDuration": 1800,
+    "notificationsEnabled": false,
+    "theme": "Light"
+  }
+}
+```
+
+### Ping
+Keep-alive message to maintain connection.
+
+```json
+{
+  "type": "Ping",
+  "timestamp": 1698569400
+}
+```
+
+## Error Messages
+
+### ErrorMessage
+Sent when client request fails validation or cannot be processed.
+
+```json
+{
+  "type": "Error",
+  "data": {
+    "error": "InvalidTimerState",
+    "message": "Cannot start timer that is already running",
+    "timestamp": 1698569400
+  }
+}
+```
+
+## Message Type Reference
+
+### Server Message Types
+- `TimerStateUpdate` - Timer state changed
+- `Notification` - Timer event notification
+- `ConfigurationUpdate` - User configuration changed
+- `ConnectionStatus` - Connection status update
+- `Error` - Error response to client request
+- `Pong` - Response to client ping
+
+### Client Message Types
+- `StartTimer` - Start timer request
+- `PauseTimer` - Pause timer request
+- `ResetTimer` - Reset timer request
+- `SkipTimer` - Skip session request
+- `UpdateConfiguration` - Update configuration request
+- `Ping` - Connection keep-alive
+
+## Connection Flow
+
+1. **Client connects** → Server sends `ConnectionStatus`
+2. **Server sends current timer state** → `TimerStateUpdate`
+3. **Server sends current configuration** → `ConfigurationUpdate`
+4. **Timer state changes** → Server broadcasts `TimerStateUpdate`
+5. **Client sends control messages** → Server processes and broadcasts updates
+6. **Connection maintenance** → Client sends `Ping`, Server responds with `Pong`
+
+## Authentication
+
+WebSocket connections must include an `X-Auth-Token` header with the shared secret during the initial HTTP upgrade request. After connection establishment, all messages are authenticated via the WebSocket session.
+
+## Rate Limiting
+
+- Control messages (Start/Pause/Reset/Skip): 10 per minute per connection
+- Configuration updates: 5 per minute per connection
+- Ping messages: 60 per minute per connection
+
+Violations result in temporary connection throttling and error messages.

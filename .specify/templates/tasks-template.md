@@ -49,8 +49,8 @@ description: "Task list template for feature implementation"
 **Purpose**: Project initialization and basic structure
 
 - [ ] T001 Create project structure per implementation plan
-- [ ] T002 Initialize [language] project with [framework] dependencies
-- [ ] T003 [P] Configure linting and formatting tools
+- [ ] T002 Initialize Rust backend with Tokio dependencies and React Native PWA frontend
+- [ ] T003 [P] Configure clippy (Rust) and ESLint (React Native) with zero-warning policies
 
 ---
 
@@ -60,14 +60,14 @@ description: "Task list template for feature implementation"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-Examples of foundational tasks (adjust based on your project):
+Examples of foundational tasks (Roma Timer specific):
 
-- [ ] T004 Setup database schema and migrations framework
-- [ ] T005 [P] Implement authentication/authorization framework
-- [ ] T006 [P] Setup API routing and middleware structure
-- [ ] T007 Create base models/entities that all stories depend on
-- [ ] T008 Configure error handling and logging infrastructure
-- [ ] T009 Setup environment configuration management
+- [ ] T004 Setup SQLite database schema and migrations for timer sessions
+- [ ] T005 [P] Implement shared-secret authentication framework
+- [ ] T006 [P] Setup RESTful API routing and middleware with <200ms response goals
+- [ ] T007 Create base timer session models and synchronization entities
+- [ ] T008 Configure error handling and structured logging for debugging
+- [ ] T009 Setup environment configuration for PWA packaging into single binary
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -153,8 +153,11 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] TXXX [P] Documentation updates in docs/
 - [ ] TXXX Code cleanup and refactoring
 - [ ] TXXX Performance optimization across all stories
-- [ ] TXXX [P] Additional unit tests (if requested) in tests/unit/
-- [ ] TXXX Security hardening
+- [ ] TXXX [P] Additional unit tests to achieve 90% coverage requirement
+- [ ] TXXX Performance optimization for <100ms UI interactions
+- [ ] TXXX Accessibility compliance verification (WCAG 2.1 AA)
+- [ ] TXXX Security hardening for shared-secret authentication
+- [ ] TXXX Load testing for 50+ concurrent timer sessions
 - [ ] TXXX Run quickstart.md validation
 
 ---

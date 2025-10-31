@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  roma-timer:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - ROMA_TIMER_HOST=0.0.0.0
+      - ROMA_TIMER_PORT=3000
+      - ROMA_TIMER_SECRET=${ROMA_TIMER_SECRET:-change-me-in-production}
+      # Data persistence directory - uses Docker volume
+      - ROMA_TIMER_DATA_DIR=/app/data
+      # Authentication environment variables
+      - ROMA_TIMER_SHARED_SECRET=${ROMA_TIMER_SHARED_SECRET:-jwt-secret-change-me-in-production}
+      - ROMA_TIMER_PEPPER=${ROMA_TIMER_PEPPER:-pepper-change-me-in-production}
+      # Fallback to DATABASE_URL for backward compatibility (overrides ROMA_TIMER_DATA_DIR if set)
+      - DATABASE_URL=${DATABASE_URL:-}
+    volumes:
+      - roma-timer-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  roma-timer-data:
+    driver: local

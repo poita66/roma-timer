@@ -1,0 +1,285 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Build and upload release binaries
+  release-binaries:
+    name: Build Release Binaries
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: linux
+            arch: amd64
+            binary_name: roma-timer-linux-amd64
+          - target: x86_64-pc-windows-gnu
+            os: windows
+            arch: amd64
+            binary_name: roma-timer-windows-amd64.exe
+          - target: x86_64-apple-darwin
+            os: macos
+            arch: amd64
+            binary_name: roma-timer-macos-amd64
+          - target: aarch64-apple-darwin
+            os: macos
+            arch: arm64
+            binary_name: roma-timer-macos-arm64
+          - target: aarch64-unknown-linux-gnu
+            os: linux
+            arch: arm64
+            binary_name: roma-timer-linux-arm64
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-${{ matrix.target }}-
+
+    - name: Build binary
+      run: |
+        cargo build --release --target ${{ matrix.target }}
+
+    - name: Prepare binary
+      shell: bash
+      run: |
+        mkdir -p release
+
+        if [[ "${{ matrix.target }}" == *"windows"* ]]; then
+          cp target/${{ matrix.target }}/release/roma-timer.exe release/${{ matrix.binary_name }}
+        else
+          cp target/${{ matrix.target }}/release/roma-timer release/${{ matrix.binary_name }}
+        fi
+
+        # Create tarball
+        tar -czf release/${{ matrix.binary_name }}.tar.gz -C release ${{ matrix.binary_name }}
+
+    - name: Generate release tag
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        echo "RELEASE_TAG=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+
+    - name: Generate release tag
+      if: github.event_name == 'push'
+      run: |
+        echo "RELEASE_TAG=${{ github.ref_name }}" >> $GITHUB_ENV
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ env.RELEASE_TAG }}
+        name: Roma Timer ${{ env.RELEASE_TAG }}
+        body: |
+          ## Roma Timer ${{ env.RELEASE_TAG }}
+
+          ### 🚀 Features
+          - Configurable persistence directory with `ROMA_TIMER_DATA_DIR` environment variable
+          - Backward compatibility with `DATABASE_URL`
+          - Docker volume support with named volumes
+          - Automatic directory creation and permission handling
+
+          ### 📦 Installation
+
+          #### Docker (Recommended)
+          ```bash
+          docker pull ghcr.io/${{ github.repository }}:${{ env.RELEASE_TAG }}
+          docker run -p 3000:3000 ghcr.io/${{ github.repository }}:${{ env.RELEASE_TAG }}
+          ```
+
+          #### Docker Compose
+          ```bash
+          curl -LO https://github.com/${{ github.repository }}/releases/download/${{ env.RELEASE_TAG }}/docker-compose.yml
+          docker compose up -d
+          ```
+
+          #### Binary Download
+          Download the appropriate binary for your platform from the assets below.
+
+          ### 🔧 Environment Variables
+          - `ROMA_TIMER_DATA_DIR`: Data persistence directory (default: `/tmp`)
+          - `DATABASE_URL`: Legacy database file path (overrides `ROMA_TIMER_DATA_DIR`)
+          - `ROMA_TIMER_HOST`: Server host (default: `0.0.0.0`)
+          - `ROMA_TIMER_PORT`: Server port (default: `3000`)
+
+          📖 For detailed documentation, visit: https://github.com/${{ github.repository }}
+        files: |
+          release/${{ matrix.binary_name }}.tar.gz
+        draft: false
+        prerelease: ${{ contains(env.RELEASE_TAG, 'alpha') || contains(env.RELEASE_TAG, 'beta') || contains(env.RELEASE_TAG, 'rc') }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Build and push Docker image
+  docker-release:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    needs: release-binaries
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Generate release tag
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        echo "RELEASE_TAG=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+
+    - name: Generate release tag
+      if: github.event_name == 'push'
+      run: |
+        echo "RELEASE_TAG=${{ github.ref_name }}" >> $GITHUB_ENV
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=tag
+          type=raw,value=${{ env.RELEASE_TAG }}
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        provenance: false
+
+  # Update docker-compose.yml for release
+  update-docker-compose:
+    name: Update Docker Compose for Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    needs: docker-release
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Generate release tag
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        echo "RELEASE_TAG=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+
+    - name: Generate release tag
+      if: github.event_name == 'push'
+      run: |
+        echo "RELEASE_TAG=${{ github.ref_name }}" >> $GITHUB_ENV
+
+    - name: Create release docker-compose.yml
+      run: |
+        cat > docker-compose.release.yml << 'EOF'
+        version: '3.8'
+
+        services:
+          roma-timer:
+            image: ghcr.io/${{ github.repository }}:${{ env.RELEASE_TAG }}
+            ports:
+              - "3000:3000"
+            environment:
+              - ROMA_TIMER_HOST=0.0.0.0
+              - ROMA_TIMER_PORT=3000
+              - ROMA_TIMER_SECRET=${ROMA_TIMER_SECRET:-change-me-in-production}
+              # Data persistence directory - uses Docker volume
+              - ROMA_TIMER_DATA_DIR=/app/data
+              # Authentication environment variables
+              - ROMA_TIMER_SHARED_SECRET=${ROMA_TIMER_SHARED_SECRET:-jwt-secret-change-me-in-production}
+              - ROMA_TIMER_PEPPER=${ROMA_TIMER_PEPPER:-pepper-change-me-in-production}
+              # Fallback to DATABASE_URL for backward compatibility (overrides ROMA_TIMER_DATA_DIR if set)
+              - DATABASE_URL=${DATABASE_URL:-}
+            volumes:
+              - roma-timer-data:/app/data
+            restart: unless-stopped
+            healthcheck:
+              test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+              interval: 30s
+              timeout: 10s
+              retries: 3
+              start_period: 40s
+
+        volumes:
+          roma-timer-data:
+            driver: local
+        EOF
+
+    - name: Upload docker-compose.yml to release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ env.RELEASE_TAG }}
+        files: |
+          docker-compose.release.yml
+        name: Roma Timer ${{ env.RELEASE_TAG }}
+        draft: false
+        prerelease: ${{ contains(env.RELEASE_TAG, 'alpha') || contains(env.RELEASE_TAG, 'beta') || contains(env.RELEASE_TAG, 'rc') }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Build status notification
+  notify:
+    name: Build Status
+    runs-on: ubuntu-latest
+    needs: [release-binaries, docker-release, update-docker-compose]
+    if: always()
+
+    steps:
+    - name: Build Status
+      run: |
+        if [[ "${{ needs.release-binaries.result }}" == "success" && "${{ needs.docker-release.result }}" == "success" && "${{ needs.update-docker-compose.result }}" == "success" ]]; then
+          echo "✅ Release completed successfully!"
+        else
+          echo "❌ Release failed or had errors"
+          echo "Binaries: ${{ needs.release-binaries.result }}"
+          echo "Docker: ${{ needs.docker-release.result }}"
+          echo "Docker Compose: ${{ needs.update-docker-compose.result }}"
+          exit 1
+        fi

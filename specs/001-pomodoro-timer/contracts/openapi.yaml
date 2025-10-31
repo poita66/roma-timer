@@ -1,0 +1,409 @@
+openapi: 3.0.3
+info:
+  title: Roma Timer API
+  description: API for the Roma Timer pomodoro application with cross-device synchronization
+  version: 1.0.0
+  contact:
+    name: Roma Timer Team
+
+servers:
+  - url: http://localhost:3000
+    description: Development server
+
+paths:
+  /api/timer:
+    get:
+      summary: Get current timer state
+      description: Retrieve the current timer session and state
+      tags:
+        - Timer
+      responses:
+        '200':
+          description: Current timer state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimerSession'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/timer/start:
+    post:
+      summary: Start timer
+      description: Start or resume the current timer session
+      tags:
+        - Timer
+      responses:
+        '200':
+          description: Timer started successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimerSession'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Timer is already running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/timer/pause:
+    post:
+      summary: Pause timer
+      description: Pause the current timer session
+      tags:
+        - Timer
+      responses:
+        '200':
+          description: Timer paused successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimerSession'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Timer is not running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/timer/reset:
+    post:
+      summary: Reset timer
+      description: Reset timer to initial work session
+      tags:
+        - Timer
+      responses:
+        '200':
+          description: Timer reset successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimerSession'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/timer/skip:
+    post:
+      summary: Skip to next session
+      description: Skip current session and move to next session type
+      tags:
+        - Timer
+      responses:
+        '200':
+          description: Session skipped successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimerSession'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/configuration:
+    get:
+      summary: Get user configuration
+      description: Retrieve current user configuration settings
+      tags:
+        - Configuration
+      responses:
+        '200':
+          description: User configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserConfiguration'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      summary: Update user configuration
+      description: Update user configuration settings
+      tags:
+        - Configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserConfigurationUpdate'
+      responses:
+        '200':
+          description: Configuration updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserConfiguration'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          description: Validation errors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+  /api/health:
+    get:
+      summary: Health check
+      description: Check API health status
+      tags:
+        - Health
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+components:
+  schemas:
+    TimerSession:
+      type: object
+      required:
+        - id
+        - duration
+        - elapsed
+        - timerType
+        - isRunning
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique timer session identifier
+        duration:
+          type: integer
+          minimum: 1
+          maximum: 7200
+          description: Total duration in seconds
+        elapsed:
+          type: integer
+          minimum: 0
+          description: Elapsed time in seconds
+        timerType:
+          type: string
+          enum: [Work, ShortBreak, LongBreak]
+          description: Type of timer session
+        isRunning:
+          type: boolean
+          description: Whether timer is currently running
+        createdAt:
+          type: integer
+          format: int64
+          description: Unix timestamp when session was created
+        updatedAt:
+          type: integer
+          format: int64
+          description: Unix timestamp when session was last updated
+
+    UserConfiguration:
+      type: object
+      required:
+        - id
+        - workDuration
+        - shortBreakDuration
+        - longBreakDuration
+        - longBreakFrequency
+        - notificationsEnabled
+        - waitForInteraction
+        - theme
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique configuration identifier
+        workDuration:
+          type: integer
+          minimum: 300
+          maximum: 3600
+          default: 1500
+          description: Work session duration in seconds (default: 25 minutes)
+        shortBreakDuration:
+          type: integer
+          minimum: 60
+          maximum: 900
+          default: 300
+          description: Short break duration in seconds (default: 5 minutes)
+        longBreakDuration:
+          type: integer
+          minimum: 300
+          maximum: 1800
+          default: 900
+          description: Long break duration in seconds (default: 15 minutes)
+        longBreakFrequency:
+          type: integer
+          minimum: 2
+          maximum: 10
+          default: 4
+          description: Number of work sessions before long break
+        notificationsEnabled:
+          type: boolean
+          default: true
+          description: Whether browser notifications are enabled
+        webhookUrl:
+          type: string
+          format: uri
+          description: Optional webhook URL for notifications
+        waitForInteraction:
+          type: boolean
+          default: false
+          description: Whether to wait for user input before starting next session
+        theme:
+          type: string
+          enum: [Light, Dark]
+          default: Light
+          description: UI theme preference
+        createdAt:
+          type: integer
+          format: int64
+          description: Unix timestamp when configuration was created
+        updatedAt:
+          type: integer
+          format: int64
+          description: Unix timestamp when configuration was last updated
+
+    UserConfigurationUpdate:
+      type: object
+      properties:
+        workDuration:
+          type: integer
+          minimum: 300
+          maximum: 3600
+          description: Work session duration in seconds
+        shortBreakDuration:
+          type: integer
+          minimum: 60
+          maximum: 900
+          description: Short break duration in seconds
+        longBreakDuration:
+          type: integer
+          minimum: 300
+          maximum: 1800
+          description: Long break duration in seconds
+        longBreakFrequency:
+          type: integer
+          minimum: 2
+          maximum: 10
+          description: Number of work sessions before long break
+        notificationsEnabled:
+          type: boolean
+          description: Whether browser notifications are enabled
+        webhookUrl:
+          type: string
+          format: uri
+          description: Optional webhook URL for notifications
+        waitForInteraction:
+          type: boolean
+          description: Whether to wait for user input before starting next session
+        theme:
+          type: string
+          enum: [Light, Dark]
+          description: UI theme preference
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+        - timestamp
+      properties:
+        error:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message
+        timestamp:
+          type: integer
+          format: int64
+          description: Unix timestamp of error
+
+    ValidationError:
+      type: object
+      required:
+        - error
+        - message
+        - timestamp
+        - details
+      properties:
+        error:
+          type: string
+          enum: [ValidationError]
+          description: Error code
+        message:
+          type: string
+          description: General error message
+        timestamp:
+          type: integer
+          format: int64
+          description: Unix timestamp of error
+        details:
+          type: array
+          items:
+            type: object
+            required:
+              - field
+              - message
+            properties:
+              field:
+                type: string
+                description: Field name with validation error
+              message:
+                type: string
+                description: Specific validation error message
+
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - timestamp
+      properties:
+        status:
+          type: string
+          enum: [healthy]
+          description: API health status
+        timestamp:
+          type: integer
+          format: int64
+          description: Unix timestamp of health check
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  securitySchemes:
+    SharedSecret:
+      type: apiKey
+      in: header
+      name: X-Auth-Token
+      description: Shared secret token for authentication
+
+security:
+  - SharedSecret: []
+
+tags:
+  - name: Timer
+    description: Timer control and state management
+  - name: Configuration
+    description: User configuration management
+  - name: Health
+    description: API health monitoring

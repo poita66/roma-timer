@@ -113,3 +113,25 @@
 - **SC-002**: [Measurable metric, e.g., "System handles 1000 concurrent users without degradation"]
 - **SC-003**: [User satisfaction metric, e.g., "90% of users successfully complete primary task on first attempt"]
 - **SC-004**: [Business metric, e.g., "Reduce support tickets related to [X] by 50%"]
+
+## Performance Requirements *(mandatory for Roma Timer)*
+
+- **PERF-001**: UI interactions must complete within 100ms
+- **PERF-002**: API responses must complete within 200ms for timer operations
+- **PERF-003**: Application must handle network interruptions gracefully with local state persistence
+- **PERF-004**: Memory usage must stay within reasonable bounds for mobile devices
+
+## Accessibility Requirements *(mandatory for Roma Timer)*
+
+- **A11Y-001**: Must meet WCAG 2.1 AA standards
+- **A11Y-002**: All timer controls must be keyboard accessible
+- **A11Y-003**: Timer state changes must be announced to screen readers
+- **A11Y-004**: Sufficient color contrast for light/dark themes
+
+## Testing Requirements *(mandatory for Roma Timer)*
+
+- **TEST-001**: Backend: Minimum 90% code coverage with integration tests for API endpoints
+- **TEST-002**: Frontend: Component tests for all interactive elements
+- **TEST-003**: E2E tests for critical user flows
+- **TEST-004**: Performance tests for concurrent timer sessions (50+ users)
+- **TEST-005**: Security tests for shared-secret authentication

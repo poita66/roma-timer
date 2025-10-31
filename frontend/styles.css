@@ -44,6 +44,7 @@ body {
 header {
     text-align: center;
     margin-bottom: 40px;
+    position: relative;
 }
 
 header h1 {
@@ -271,4 +272,237 @@ header p {
 
 .notification.error {
     border-left-color: #e74c3c;
+}
+
+/* Connection status display */
+.connection-status {
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+    opacity: 0.8;
+}
+
+.connection-status.disconnected {
+    background-color: rgba(231, 76, 60, 0.2);
+    color: #e74c3c;
+    border: 1px solid #e74c3c;
+}
+
+.connection-status.connecting {
+    background-color: rgba(243, 156, 18, 0.2);
+    color: #f39c12;
+    border: 1px solid #f39c12;
+    animation: pulse 1.5s infinite;
+}
+
+.connection-status.connected {
+    background-color: rgba(39, 174, 96, 0.2);
+    color: #27ae60;
+    border: 1px solid #27ae60;
+}
+
+.device-count {
+    position: absolute;
+    top: 40px;
+    right: 20px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    background-color: rgba(52, 152, 219, 0.2);
+    color: #3498db;
+    border: 1px solid #3498db;
+    opacity: 0.8;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 0.8;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0.8;
+    }
+}
+
+/* Dark theme adjustments for connection status */
+[data-theme="dark"] .connection-status.disconnected {
+    background-color: rgba(231, 76, 60, 0.3);
+    color: #ff6b6b;
+    border-color: #ff6b6b;
+}
+
+[data-theme="dark"] .connection-status.connecting {
+    background-color: rgba(243, 156, 18, 0.3);
+    color: #f1c40f;
+    border-color: #f1c40f;
+}
+
+[data-theme="dark"] .connection-status.connected {
+    background-color: rgba(39, 174, 96, 0.3);
+    color: #2ecc71;
+    border-color: #2ecc71;
+}
+
+[data-theme="dark"] .device-count {
+    background-color: rgba(52, 152, 219, 0.3);
+    color: #5dade2;
+    border-color: #5dade2;
+}
+
+/* Authentication Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+}
+
+.modal.show {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background: var(--card-background);
+    padding: 2rem;
+    border-radius: 15px;
+    box-shadow: var(--shadow);
+    width: 90%;
+    max-width: 400px;
+    position: relative;
+}
+
+.auth-tabs {
+    display: flex;
+    margin-bottom: 2rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 1rem;
+    border: none;
+    background: none;
+    color: var(--text-color);
+    cursor: pointer;
+    font-size: 1rem;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.tab-btn.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+}
+
+.tab-btn:hover:not(.active) {
+    color: var(--secondary-color);
+}
+
+.auth-tab {
+    display: none;
+}
+
+.auth-tab.active {
+    display: block;
+}
+
+.auth-tab h2 {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    color: var(--text-color);
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.form-group input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1rem;
+    background: var(--card-background);
+    color: var(--text-color);
+    transition: border-color 0.3s ease;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.form-group input::placeholder {
+    color: var(--tertiary-color);
+    opacity: 0.6;
+}
+
+.error-message {
+    background-color: rgba(231, 76, 60, 0.1);
+    color: #e74c3c;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-top: 1rem;
+    text-align: center;
+    font-size: 0.9rem;
+    border: 1px solid rgba(231, 76, 60, 0.3);
+}
+
+.success-message {
+    background-color: rgba(39, 174, 96, 0.1);
+    color: #27ae60;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-top: 1rem;
+    text-align: center;
+    font-size: 0.9rem;
+    border: 1px solid rgba(39, 174, 96, 0.3);
+}
+
+/* Header with user info */
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+#userDisplay {
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+/* Main content should be hidden when auth modal is shown */
+.modal.show ~ .container main {
+    filter: blur(4px);
+    pointer-events: none;
 }

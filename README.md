@@ -5,13 +5,15 @@ A simple, beautiful, and functional Pomodoro timer web application built with Ru
 ## Features
 
 - ✅ **Pomodoro Technique**: 25-minute work sessions with 5-minute breaks
+- ✅ **User Authentication**: Secure username/password login with encrypted password storage
+- ✅ **Cross-Device Sync**: Real-time timer synchronization across multiple devices
 - ✅ **Customizable Durations**: Configure work, short break, and long break durations
 - ✅ **Beautiful UI**: Clean, responsive design with light/dark themes
 - ✅ **Progress Visualization**: Circular progress indicator
 - ✅ **Session Counter**: Track your completed work sessions
 - ✅ **Audio Notifications**: Sound alerts when sessions complete
 - ✅ **PWA Support**: Install as a native app on supported devices
-- ✅ **Settings Persistence**: Your preferences are saved locally
+- ✅ **Settings Persistence**: Your preferences are saved locally and synced across devices
 - ✅ **Keyboard Accessible**: Full keyboard navigation support
 
 ## Quick Start
@@ -85,11 +87,41 @@ On supported browsers, you can install Roma Timer as a Progressive Web App:
 
 The application exposes a simple REST API:
 
+### Timer
 - `GET /api/timer` - Get current timer state
 - `POST /api/timer` - Control timer (start/pause/reset/skip)
+
+### Settings
 - `GET /api/settings` - Get current settings
 - `POST /api/settings` - Update settings
+
+### Authentication
+- `POST /api/auth/register` - Register a new user account
+- `POST /api/auth/login` - Login and get authentication token
+
+### System
 - `GET /api/health` - Health check
+- `GET /ws` - WebSocket endpoint for real-time updates
+
+### Authentication
+Protected API endpoints require a Bearer token in the Authorization header:
+```
+Authorization: Bearer <your-jwt-token>
+```
+
+#### User Registration
+```bash
+curl -X POST http://localhost:3000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"myuser","password":"mypassword123"}'
+```
+
+#### User Login
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"myuser","password":"mypassword123"}'
+```
 
 ### Timer Control
 
@@ -118,13 +150,50 @@ Send POST requests to `/api/settings` with JSON payload:
 
 ### Environment Variables
 
+#### Basic Configuration
 - `PORT`: Server port (default: 3000)
 - `HOST`: Server host (default: 0.0.0.0)
+- `DATABASE_URL`: Path to JSON database file (default: /tmp/roma_timer.json)
+
+#### Authentication (IMPORTANT: Change these in production!)
+- `ROMA_TIMER_SHARED_SECRET`: Secret for JWT token signing (default: "jwt-secret-change-me-in-production")
+- `ROMA_TIMER_PEPPER`: Global pepper for password hashing (default: "pepper-change-me-in-production")
+
+#### Optional
+- `ROMA_TIMER_WEBHOOK_URL`: Webhook URL for session completion notifications
+
+### Docker Setup
+
+Create a `.env` file for production:
+
+```bash
+# Copy the example file
+cp .env.example .env
+
+# Edit with your production values
+nano .env
+```
+
+### Docker Compose
+
+```bash
+# Start with default settings
+docker-compose up -d
+
+# Start with custom environment file
+docker-compose --env-file .env up -d
+```
 
 ### Example
 
 ```bash
+# Basic configuration
 PORT=8080 HOST=127.0.0.1 ./roma-timer
+
+# With custom authentication secrets
+ROMA_TIMER_SHARED_SECRET="my-super-secret-jwt-key" \
+ROMA_TIMER_PEPPER="my-global-pepper-value" \
+PORT=8080 ./roma-timer
 ```
 
 ## Development

@@ -17,21 +17,29 @@
   the iteration process.
 -->
 
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [single/web/mobile - determines source structure]  
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**Language/Version**: Rust 1.75+ (backend), React Native (frontend PWA)
+**Primary Dependencies**: Tokio (async runtime), SQLite (storage), React Native PWA framework
+**Storage**: SQLite database for easy deployment
+**Testing**: cargo test (backend), Jest/React Testing Library (frontend)
+**Target Platform**: Linux server (backend), Web PWA (frontend), iOS/Android (via React Native)
+**Project Type**: Web application with PWA frontend and Rust backend
+**Performance Goals**: Sub-100ms UI interactions, <200ms API responses, 50+ concurrent timer sessions
+**Constraints**: <200ms API p95, <100MB memory usage, offline-capable with local state persistence, WCAG 2.1 AA accessibility
+**Scale/Scope**: Individual users with multi-device synchronization, single binary deployment
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+**Code Quality Excellence**: Implementation must follow idiomatic Rust patterns, pass clippy with zero warnings, and include clear documentation for complex logic.
+
+**Test-First Development**: All features must have comprehensive tests written before implementation. Backend requires unit and integration tests. Frontend requires component tests for all interactions.
+
+**User Experience Consistency**: Must provide consistent UI/UX across all platforms with real-time synchronization and WCAG 2.1 AA accessibility compliance.
+
+**Performance Requirements**: UI interactions <100ms, API responses <200ms, graceful handling of network interruptions with local persistence.
+
+**Simplicity Focus**: Features must align with core pomodoro timer functionality. Avoid scope creep. Maintain minimal technology stack.
 
 ## Project Structure
 
@@ -68,27 +76,26 @@ tests/
 ├── integration/
 └── unit/
 
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
+# Web application (Rust backend + React Native PWA frontend)
 backend/
 ├── src/
 │   ├── models/
 │   ├── services/
-│   └── api/
+│   ├── api/
+│   └── main.rs
+├── migrations/
 └── tests/
+    ├── unit/
+    └── integration/
 
 frontend/
 ├── src/
 │   ├── components/
 │   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+│   ├── services/
+│   └── hooks/
+├── public/
+└── __tests__/
 ```
 
 **Structure Decision**: [Document the selected structure and reference the real
