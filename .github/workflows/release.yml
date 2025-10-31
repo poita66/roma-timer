@@ -61,12 +61,13 @@ jobs:
         path: |
           ~/.cargo/registry
           ~/.cargo/git
-          target
-        key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+          backend/target
+        key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('backend/Cargo.lock') }}
         restore-keys: |
           ${{ runner.os }}-cargo-${{ matrix.target }}-
 
     - name: Build binary
+      working-directory: ./backend
       run: |
         cargo build --release --target ${{ matrix.target }}
 
@@ -76,9 +77,9 @@ jobs:
         mkdir -p release
 
         if [[ "${{ matrix.target }}" == *"windows"* ]]; then
-          cp target/${{ matrix.target }}/release/roma-timer.exe release/${{ matrix.binary_name }}
+          cp backend/target/${{ matrix.target }}/release/roma-timer.exe release/${{ matrix.binary_name }}
         else
-          cp target/${{ matrix.target }}/release/roma-timer release/${{ matrix.binary_name }}
+          cp backend/target/${{ matrix.target }}/release/roma-timer release/${{ matrix.binary_name }}
         fi
 
         # Create tarball
