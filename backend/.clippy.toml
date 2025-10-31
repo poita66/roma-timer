@@ -24,20 +24,3 @@ upper-case-acronyms-aggressive = true
 
 # Disallow specific patterns
 disallowed-names = ["foo", "bar", "baz", "qux"]
-
-# Require exhaustive match arms
-match-same-arms = true
-
-# Enforce proper borrowing
-borrowed-box = true
-
-# Memory safety
-mem-forget = true
-
-# Performance
-clone-on-ref-ptr = true
-redundant-clone = true
-
-# Code style
-similar-names = true
-unseparated-literal-suffix = true

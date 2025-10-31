@@ -1,9 +1,9 @@
-use std::env;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::env;
+use std::path::Path;
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
-use std::path::Path;
 use uuid::Uuid;
 
 use crate::TimerState;
@@ -65,7 +65,7 @@ impl Database {
     pub async fn new() -> Result<Self, Box<dyn std::error::Error>> {
         let file_path = Self::determine_database_path().await?;
 
-        println!("🗄️ Using JSON file storage: {}", file_path);
+        println!("🗄️ Using JSON file storage: {file_path}");
 
         // Initialize database file if it doesn't exist
         if !Path::new(&file_path).exists() {
@@ -120,13 +120,16 @@ impl Database {
     }
 
     /// Ensures the data directory exists, creating it if necessary
-    async fn ensure_data_directory_exists(dir_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    async fn ensure_data_directory_exists(
+        dir_path: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let path = Path::new(dir_path);
 
         if !path.exists() {
-            println!("📁 Creating data directory: {}", dir_path);
-            fs::create_dir_all(path).await
-                .map_err(|e| format!("Failed to create data directory '{}': {}", dir_path, e))?;
+            println!("📁 Creating data directory: {dir_path}");
+            fs::create_dir_all(path)
+                .await
+                .map_err(|e| format!("Failed to create data directory '{dir_path}': {e}"))?;
 
             // Set appropriate permissions for the directory
             #[cfg(unix)]
@@ -149,7 +152,7 @@ impl Database {
                 println!("✅ Data directory is writable");
             }
             Err(e) => {
-                return Err(format!("Data directory '{}' is not writable: {}", dir_path, e).into());
+                return Err(format!("Data directory '{dir_path}' is not writable: {e}").into());
             }
         }
 
@@ -171,11 +174,14 @@ impl Database {
         Ok(())
     }
 
-    pub async fn get_current_timer_state(&self) -> Result<Option<TimerState>, Box<dyn std::error::Error>> {
+    pub async fn get_current_timer_state(
+        &self,
+    ) -> Result<Option<TimerState>, Box<dyn std::error::Error>> {
         let mut db = self.read_database().await?;
 
         // Sort by created_at descending and take the latest
-        db.timer_sessions.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        db.timer_sessions
+            .sort_by(|a, b| b.created_at.cmp(&a.created_at));
 
         if let Some(session) = db.timer_sessions.first() {
             Ok(Some(self.timer_session_to_state(session.clone())))
@@ -184,7 +190,10 @@ impl Database {
         }
     }
 
-    pub async fn save_timer_state(&self, state: &TimerState) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn save_timer_state(
+        &self,
+        state: &TimerState,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let session_id = Uuid::new_v4().to_string();
         let now = Utc::now();
 
@@ -210,7 +219,8 @@ impl Database {
         db.timer_sessions.push(session);
 
         // Clean up old sessions (keep only last 100)
-        db.timer_sessions.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        db.timer_sessions
+            .sort_by(|a, b| b.created_at.cmp(&a.created_at));
         db.timer_sessions.truncate(100);
 
         // Write back to file
@@ -223,7 +233,8 @@ impl Database {
         let mut db = self.read_database().await?;
 
         // Sort by updated_at descending and take the latest
-        db.user_settings.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+        db.user_settings
+            .sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
 
         if let Some(settings) = db.user_settings.first() {
             Ok(settings.clone())
@@ -244,7 +255,10 @@ impl Database {
         }
     }
 
-    pub async fn update_user_settings(&self, settings: &UserSettings) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn update_user_settings(
+        &self,
+        settings: &UserSettings,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let mut db = self.read_database().await?;
 
         if let Some(id) = settings.id {
@@ -282,7 +296,12 @@ impl Database {
     }
 
     // User management methods
-    pub async fn create_user(&self, username: &str, password_hash: &str, salt: &str) -> Result<User, Box<dyn std::error::Error>> {
+    pub async fn create_user(
+        &self,
+        username: &str,
+        password_hash: &str,
+        salt: &str,
+    ) -> Result<User, Box<dyn std::error::Error>> {
         let mut db = self.read_database().await?;
 
         // Check if username already exists
@@ -305,14 +324,19 @@ impl Database {
         Ok(user)
     }
 
-    pub async fn get_user_by_username(&self, username: &str) -> Result<Option<User>, Box<dyn std::error::Error>> {
+    pub async fn get_user_by_username(
+        &self,
+        username: &str,
+    ) -> Result<Option<User>, Box<dyn std::error::Error>> {
         let db = self.read_database().await?;
         Ok(db.users.into_iter().find(|u| u.username == username))
     }
 
-    pub async fn get_user_by_id(&self, user_id: i64) -> Result<Option<User>, Box<dyn std::error::Error>> {
+    pub async fn get_user_by_id(
+        &self,
+        user_id: i64,
+    ) -> Result<Option<User>, Box<dyn std::error::Error>> {
         let db = self.read_database().await?;
         Ok(db.users.into_iter().find(|u| u.id == Some(user_id)))
     }
 }
-

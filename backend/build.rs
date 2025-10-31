@@ -8,18 +8,22 @@ fn main() {
     println!("cargo:rerun-if-changed=migrations");
 
     // Generate build information
-    #[cfg(feature = "build-info")]
-    {
-        vergen::EmitBuilder::builder()
-            .build_timestamp()
-            .emit()
-            .unwrap();
-    }
+    // Note: build-info feature is not currently defined, so this is commented out
+    // #[cfg(feature = "build-info")]
+    // {
+    //     vergen::EmitBuilder::builder()
+    //         .build_timestamp()
+    //         .emit()
+    //         .unwrap();
+    // }
 
     // Embed frontend assets if they exist
     let frontend_dist = Path::new("frontend/web-build");
     if frontend_dist.exists() {
-        println!("cargo:warning=Embedding frontend assets from {}", frontend_dist.display());
+        println!(
+            "cargo:warning=Embedding frontend assets from {}",
+            frontend_dist.display()
+        );
 
         // Use include_dir to embed frontend assets
         println!("cargo:rustc-cfg=feature=\"embedded-frontend\"");

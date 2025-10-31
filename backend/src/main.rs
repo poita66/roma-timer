@@ -18,11 +18,16 @@ use axum::{
     response::{Json, Response},
     routing::{get, post},
     Router,
-    middleware,
 };
 use axum_extra::typed_header::TypedHeader;
+use base64::{engine::general_purpose, Engine as _};
 use futures_util::{SinkExt, StreamExt};
+use headers::{authorization::Bearer, Authorization};
+use hmac::{Hmac, Mac};
+use rand::Rng;
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use sha2::Sha256;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::{
@@ -31,12 +36,6 @@ use tower_http::{
     trace::TraceLayer,
 };
 use uuid::Uuid;
-use hmac::{Hmac, Mac};
-use sha2::Sha256;
-use base64::{Engine as _, engine::general_purpose};
-use reqwest::Client;
-use rand::Rng;
-use headers::{Authorization, authorization::Bearer};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TimerState {
@@ -104,7 +103,11 @@ pub enum WsMessage {
     TimerStateUpdate(TimerState),
     TimerControl(TimerRequest),
     SettingsUpdate(SettingsRequest),
-    ConnectionStatus { connection_id: String, connected: bool, device_count: usize },
+    ConnectionStatus {
+        connection_id: String,
+        connected: bool,
+        device_count: usize,
+    },
     Ping,
     Pong,
 }
@@ -165,7 +168,8 @@ impl WebSocketManager {
             connection_id: id,
             connected: true,
             device_count,
-        }).await;
+        })
+        .await;
     }
 
     pub async fn remove_connection(&self, id: String) {
@@ -182,7 +186,8 @@ impl WebSocketManager {
             connection_id: id,
             connected: false,
             device_count,
-        }).await;
+        })
+        .await;
     }
 
     pub async fn update_timer_state(&self, state: TimerState) {
@@ -194,11 +199,12 @@ impl WebSocketManager {
 
         // Save to database
         if let Err(e) = self.database.save_timer_state(&state).await {
-            eprintln!("Failed to save timer state to database: {}", e);
+            eprintln!("Failed to save timer state to database: {e}");
         }
 
         // Broadcast to all connected clients
-        self.broadcast_message(WsMessage::TimerStateUpdate(state)).await;
+        self.broadcast_message(WsMessage::TimerStateUpdate(state))
+            .await;
     }
 
     pub async fn broadcast_message(&self, message: WsMessage) {
@@ -206,7 +212,7 @@ impl WebSocketManager {
         let message_text = match serde_json::to_string(&message) {
             Ok(text) => text,
             Err(e) => {
-                eprintln!("Failed to serialize message: {}", e);
+                eprintln!("Failed to serialize message: {e}");
                 return;
             }
         };
@@ -238,11 +244,15 @@ type SharedState = Arc<Mutex<TimerState>>;
 type SharedWsManager = Arc<WebSocketManager>;
 
 // Webhook notification system
-async fn send_webhook_notification(webhook_url: &str, session_type: &str, session_count: u32) -> Result<(), Box<dyn std::error::Error>> {
+async fn send_webhook_notification(
+    webhook_url: &str,
+    session_type: &str,
+    session_count: u32,
+) -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::new();
 
     let message = match session_type {
-        "work" => format!("Work session #{} complete! Time for a break.", session_count),
+        "work" => format!("Work session #{session_count} complete! Time for a break."),
         "short_break" => "Short break over! Ready to focus?".to_string(),
         "long_break" => "Long break complete! Ready to be productive?".to_string(),
         _ => "Timer session complete!".to_string(),
@@ -268,7 +278,7 @@ async fn send_webhook_notification(webhook_url: &str, session_type: &str, sessio
         .await?;
 
     if response.status().is_success() {
-        println!("✅ Webhook notification sent successfully to {}", webhook_url);
+        println!("✅ Webhook notification sent successfully to {webhook_url}");
     } else {
         println!("⚠️  Webhook notification failed: {}", response.status());
     }
@@ -284,7 +294,8 @@ fn get_shared_secret() -> String {
 }
 
 fn get_pepper() -> String {
-    env::var("ROMA_TIMER_PEPPER").unwrap_or_else(|_| "default-pepper-change-me-in-production".to_string())
+    env::var("ROMA_TIMER_PEPPER")
+        .unwrap_or_else(|_| "default-pepper-change-me-in-production".to_string())
 }
 
 fn generate_salt() -> String {
@@ -293,8 +304,12 @@ fn generate_salt() -> String {
     hex::encode(salt)
 }
 
-fn hash_password(password: &str, salt: &str, pepper: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let combined = format!("{}{}{}", password, salt, pepper);
+fn hash_password(
+    password: &str,
+    salt: &str,
+    pepper: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let combined = format!("{password}{salt}{pepper}");
     let mut mac = HmacSha256::new_from_slice(combined.as_bytes())?;
     mac.update(b"roma-timer-hash");
     let hash = mac.finalize().into_bytes();
@@ -326,7 +341,8 @@ fn generate_auth_token(user_id: &str) -> Result<String, Box<dyn std::error::Erro
     mac.update(claims_json.as_bytes());
     let signature = mac.finalize().into_bytes();
 
-    let token = format!("{}.{}",
+    let token = format!(
+        "{}.{}",
         general_purpose::STANDARD.encode(claims_json.as_bytes()),
         general_purpose::STANDARD.encode(signature)
     );
@@ -381,6 +397,9 @@ fn verify_auth_token(token: &str) -> Result<AuthClaims, Box<dyn std::error::Erro
     Ok(claims)
 }
 
+// Note: Authentication middleware is currently disabled
+// To enable authentication, uncomment the auth_middleware function and the middleware layer in main()
+/*
 // Authentication middleware
 async fn auth_middleware(
     req: axum::extract::Request<axum::body::Body>,
@@ -391,7 +410,8 @@ async fn auth_middleware(
     if path == "/api/auth/login"
         || path == "/api/auth/register"
         || path == "/"
-        || path.starts_with("/static") {
+        || path.starts_with("/static")
+    {
         return Ok(next.run(req).await);
     }
 
@@ -405,8 +425,7 @@ async fn auth_middleware(
                 Err(_) => return Err(axum::http::StatusCode::UNAUTHORIZED),
             };
 
-            if header_str.starts_with("Bearer ") {
-                let token = &header_str[7..];
+            if let Some(token) = header_str.strip_prefix("Bearer ") {
                 match verify_auth_token(token) {
                     Ok(_) => Ok(next.run(req).await),
                     Err(_) => Err(axum::http::StatusCode::UNAUTHORIZED),
@@ -418,6 +437,7 @@ async fn auth_middleware(
         None => Err(axum::http::StatusCode::UNAUTHORIZED),
     }
 }
+*/
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -426,7 +446,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Get port from environment or use default
     let port = env::var("PORT").unwrap_or_else(|_| "3000".to_string());
-    let addr = format!("0.0.0.0:{}", port);
+    let addr = format!("0.0.0.0:{port}");
 
     // Initialize database
     let database = Arc::new(Database::new().await?);
@@ -459,32 +479,42 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let shared_state = SharedState::new(Mutex::new(initial_state.clone()));
-    let ws_manager = SharedWsManager::new(WebSocketManager::new(shared_state.clone(), database.clone()));
+    let ws_manager = SharedWsManager::new(WebSocketManager::new(
+        shared_state.clone(),
+        database.clone(),
+    ));
 
     // Create CORS layer
     let cors = CorsLayer::new()
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
-        .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION, header::UPGRADE, header::CONNECTION, header::SEC_WEBSOCKET_KEY, header::SEC_WEBSOCKET_VERSION, header::SEC_WEBSOCKET_PROTOCOL])
+        .allow_headers([
+            header::CONTENT_TYPE,
+            header::AUTHORIZATION,
+            header::UPGRADE,
+            header::CONNECTION,
+            header::SEC_WEBSOCKET_KEY,
+            header::SEC_WEBSOCKET_VERSION,
+            header::SEC_WEBSOCKET_PROTOCOL,
+        ])
         .allow_origin(Any);
 
     // Build router
     let app = Router::new()
         // Serve frontend
-        .nest_service("/", ServeDir::new("../frontend").fallback(ServeDir::new("../frontend/index.html")))
-
+        .nest_service(
+            "/",
+            ServeDir::new("../frontend").fallback(ServeDir::new("../frontend/index.html")),
+        )
         // API routes
         .route("/api/timer", get(get_timer).post(control_timer))
         .route("/api/settings", get(get_settings).post(update_settings))
         .route("/api/health", get(health_check))
         .route("/api/auth/register", post(register_user))
         .route("/api/auth/login", post(login_user))
-
         // WebSocket endpoint
         .route("/ws", get(websocket_handler))
-
         // Apply authentication middleware (temporarily disabled due to type issues)
         // .layer(middleware::from_fn(auth_middleware))
-
         // Apply other middleware
         .layer(
             ServiceBuilder::new()
@@ -494,10 +524,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_state((shared_state, ws_manager));
 
     // Start server
-    println!("🍅 Roma Timer server starting on http://{}", addr);
-    println!("📱 Frontend will be available at http://localhost:{}/", port);
-    println!("🔧 API available at http://localhost:{}/api/", port);
-    println!("🌐 WebSocket available at ws://localhost:{}/ws", port);
+    println!("🍅 Roma Timer server starting on http://{addr}");
+    println!("📱 Frontend will be available at http://localhost:{port}/");
+    println!("🔧 API available at http://localhost:{port}/api/");
+    println!("🌐 WebSocket available at ws://localhost:{port}/ws");
 
     let listener = TcpListener::bind(&addr).await?;
     axum::serve(listener, app).await?;
@@ -514,8 +544,7 @@ async fn get_timer(
     match auth_header {
         Some(header_value) => {
             if let Ok(header_str) = header_value.to_str() {
-                if header_str.starts_with("Bearer ") {
-                    let token = &header_str[7..];
+                if let Some(token) = header_str.strip_prefix("Bearer ") {
                     if verify_auth_token(token).is_err() {
                         return Err(StatusCode::UNAUTHORIZED);
                     }
@@ -543,8 +572,7 @@ async fn control_timer(
     match auth_header {
         Some(header_value) => {
             if let Ok(header_str) = header_value.to_str() {
-                if header_str.starts_with("Bearer ") {
-                    let token = &header_str[7..];
+                if let Some(token) = header_str.strip_prefix("Bearer ") {
                     if verify_auth_token(token).is_err() {
                         return Err(StatusCode::UNAUTHORIZED);
                     }
@@ -643,8 +671,7 @@ async fn get_settings(
     match auth_header {
         Some(header_value) => {
             if let Ok(header_str) = header_value.to_str() {
-                if header_str.starts_with("Bearer ") {
-                    let token = &header_str[7..];
+                if let Some(token) = header_str.strip_prefix("Bearer ") {
                     if verify_auth_token(token).is_err() {
                         return Err(StatusCode::UNAUTHORIZED);
                     }
@@ -661,8 +688,14 @@ async fn get_settings(
     let timer_state = state.lock().await;
     let mut settings = HashMap::new();
     settings.insert("work_duration".to_string(), timer_state.work_duration);
-    settings.insert("short_break_duration".to_string(), timer_state.short_break_duration);
-    settings.insert("long_break_duration".to_string(), timer_state.long_break_duration);
+    settings.insert(
+        "short_break_duration".to_string(),
+        timer_state.short_break_duration,
+    );
+    settings.insert(
+        "long_break_duration".to_string(),
+        timer_state.long_break_duration,
+    );
     Ok(Json(settings))
 }
 
@@ -676,8 +709,7 @@ async fn update_settings(
     match auth_header {
         Some(header_value) => {
             if let Ok(header_str) = header_value.to_str() {
-                if header_str.starts_with("Bearer ") {
-                    let token = &header_str[7..];
+                if let Some(token) = header_str.strip_prefix("Bearer ") {
                     if verify_auth_token(token).is_err() {
                         return Err(StatusCode::UNAUTHORIZED);
                     }
@@ -722,7 +754,9 @@ async fn update_settings(
     drop(timer_state);
 
     // Broadcast settings change via WebSocket
-    ws_manager.broadcast_message(WsMessage::SettingsUpdate(request)).await;
+    ws_manager
+        .broadcast_message(WsMessage::SettingsUpdate(request))
+        .await;
 
     Ok(Json(updated_state))
 }
@@ -752,7 +786,10 @@ async fn register_user(
     };
 
     // Create user
-    match database.create_user(&request.username, &password_hash, &salt).await {
+    match database
+        .create_user(&request.username, &password_hash, &salt)
+        .await
+    {
         Ok(user) => {
             let user_id = user.id.unwrap_or(0).to_string();
             println!("✅ User registered successfully: {}", request.username);
@@ -763,7 +800,7 @@ async fn register_user(
             }))
         }
         Err(e) => {
-            eprintln!("❌ Failed to register user: {}", e);
+            eprintln!("❌ Failed to register user: {e}");
             if e.to_string().contains("Username already exists") {
                 return Err(StatusCode::CONFLICT);
             }
@@ -828,7 +865,9 @@ async fn websocket_handler(
         // Fallback to query parameter for JavaScript WebSocket API
         if let Some(query) = uri.query() {
             let params: std::collections::HashMap<String, String> =
-                url::form_urlencoded::parse(query.as_bytes()).into_owned().collect();
+                url::form_urlencoded::parse(query.as_bytes())
+                    .into_owned()
+                    .collect();
             params.get("token").cloned()
         } else {
             None
@@ -841,7 +880,15 @@ async fn websocket_handler(
         match verify_auth_token(&token) {
             Ok(claims) => {
                 let user_id = claims.sub;
-                ws.on_upgrade(move |socket| handle_websocket(socket, state, ws_manager, user_agent.map(|ua| ua.to_string()), user_id))
+                ws.on_upgrade(move |socket| {
+                    handle_websocket(
+                        socket,
+                        state,
+                        ws_manager,
+                        user_agent.map(|ua| ua.to_string()),
+                        user_id,
+                    )
+                })
             }
             Err(_) => {
                 // Return unauthorized response
@@ -855,7 +902,9 @@ async fn websocket_handler(
         // No Authorization header or token provided
         Response::builder()
             .status(StatusCode::UNAUTHORIZED)
-            .body(axum::body::Body::from("Authorization required for WebSocket connection"))
+            .body(axum::body::Body::from(
+                "Authorization required for WebSocket connection",
+            ))
             .unwrap()
     }
 }
@@ -869,13 +918,15 @@ async fn handle_websocket(
 ) {
     let connection_id = Uuid::new_v4().to_string();
 
-    println!("WebSocket connected: {} for user {} (UA: {:?})", connection_id, user_id, user_agent);
+    println!("WebSocket connected: {connection_id} for user {user_id} (UA: {user_agent:?})");
 
     // Create a channel for this connection
     let (tx, mut rx) = mpsc::unbounded_channel::<Message>();
 
     // Add connection to manager with the sender
-    ws_manager.add_connection(connection_id.clone(), user_agent.clone(), tx).await;
+    ws_manager
+        .add_connection(connection_id.clone(), user_agent.clone(), tx)
+        .await;
 
     // Split the WebSocket into sender and receiver
     let (mut ws_sender, mut ws_receiver) = socket.split();
@@ -905,7 +956,7 @@ async fn handle_websocket(
                 break;
             }
         }
-        println!("WebSocket forward task ended for: {}", connection_id_clone);
+        println!("WebSocket forward task ended for: {connection_id_clone}");
     });
 
     // Task to handle incoming messages from the WebSocket
@@ -946,7 +997,10 @@ async fn handle_websocket(
                                         }
                                         "reset" => {
                                             timer_state.is_running = false;
-                                            timer_state.remaining_seconds = match timer_state.session_type.as_str() {
+                                            timer_state.remaining_seconds = match timer_state
+                                                .session_type
+                                                .as_str()
+                                            {
                                                 "work" => timer_state.work_duration,
                                                 "short_break" => timer_state.short_break_duration,
                                                 "long_break" => timer_state.long_break_duration,
@@ -959,18 +1013,22 @@ async fn handle_websocket(
                                         }
                                         "skip" => {
                                             timer_state.is_running = false;
-                                            timer_state.session_type = match timer_state.session_type.as_str() {
-                                                "work" => "short_break".to_string(),
-                                                "short_break" => "work".to_string(),
-                                                "long_break" => "work".to_string(),
-                                                _ => "work".to_string(),
-                                            };
+                                            timer_state.session_type =
+                                                match timer_state.session_type.as_str() {
+                                                    "work" => "short_break".to_string(),
+                                                    "short_break" => "work".to_string(),
+                                                    "long_break" => "work".to_string(),
+                                                    _ => "work".to_string(),
+                                                };
 
                                             if timer_state.session_type == "work" {
                                                 timer_state.session_count += 1;
                                             }
 
-                                            timer_state.remaining_seconds = match timer_state.session_type.as_str() {
+                                            timer_state.remaining_seconds = match timer_state
+                                                .session_type
+                                                .as_str()
+                                            {
                                                 "work" => timer_state.work_duration,
                                                 "short_break" => timer_state.short_break_duration,
                                                 "long_break" => timer_state.long_break_duration,
@@ -997,21 +1055,28 @@ async fn handle_websocket(
 
                                     if let Some(work_duration) = request.work_duration {
                                         timer_state.work_duration = work_duration;
-                                        if timer_state.session_type == "work" && !timer_state.is_running {
+                                        if timer_state.session_type == "work"
+                                            && !timer_state.is_running
+                                        {
                                             timer_state.remaining_seconds = work_duration;
                                         }
                                     }
 
-                                    if let Some(short_break_duration) = request.short_break_duration {
+                                    if let Some(short_break_duration) = request.short_break_duration
+                                    {
                                         timer_state.short_break_duration = short_break_duration;
-                                        if timer_state.session_type == "short_break" && !timer_state.is_running {
+                                        if timer_state.session_type == "short_break"
+                                            && !timer_state.is_running
+                                        {
                                             timer_state.remaining_seconds = short_break_duration;
                                         }
                                     }
 
                                     if let Some(long_break_duration) = request.long_break_duration {
                                         timer_state.long_break_duration = long_break_duration;
-                                        if timer_state.session_type == "long_break" && !timer_state.is_running {
+                                        if timer_state.session_type == "long_break"
+                                            && !timer_state.is_running
+                                        {
                                             timer_state.remaining_seconds = long_break_duration;
                                         }
                                     }
@@ -1024,12 +1089,19 @@ async fn handle_websocket(
                                     drop(timer_state);
 
                                     // Broadcast settings change
-                                    ws_manager_clone.broadcast_message(WsMessage::SettingsUpdate(request)).await;
+                                    ws_manager_clone
+                                        .broadcast_message(WsMessage::SettingsUpdate(request))
+                                        .await;
                                 }
                                 WsMessage::Ping => {
                                     // Respond with pong directly to this client
                                     if let Ok(pong_msg) = serde_json::to_string(&WsMessage::Pong) {
-                                        if let Some(sender) = ws_manager_clone.senders.lock().await.get(&connection_id_clone2) {
+                                        if let Some(sender) = ws_manager_clone
+                                            .senders
+                                            .lock()
+                                            .await
+                                            .get(&connection_id_clone2)
+                                        {
                                             let _ = sender.send(Message::Text(pong_msg));
                                         }
                                     }
@@ -1056,7 +1128,7 @@ async fn handle_websocket(
     // Remove connection when disconnected
     let connection_id_clone = connection_id.clone();
     ws_manager.remove_connection(connection_id).await;
-    println!("WebSocket disconnected: {}", connection_id_clone);
+    println!("WebSocket disconnected: {connection_id_clone}");
 }
 
 async fn tick_timer(state: SharedState, ws_manager: SharedWsManager) {
@@ -1111,8 +1183,14 @@ async fn tick_timer(state: SharedState, ws_manager: SharedWsManager) {
                     let session_count_clone = completed_session_count;
 
                     tokio::spawn(async move {
-                        if let Err(e) = send_webhook_notification(&webhook_url_clone, &session_type_clone, session_count_clone).await {
-                            eprintln!("Failed to send webhook notification: {}", e);
+                        if let Err(e) = send_webhook_notification(
+                            &webhook_url_clone,
+                            &session_type_clone,
+                            session_count_clone,
+                        )
+                        .await
+                        {
+                            eprintln!("Failed to send webhook notification: {e}");
                         }
                     });
                 }
