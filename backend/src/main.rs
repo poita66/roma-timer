@@ -18,6 +18,7 @@ use axum::{
     response::{Json, Response},
     routing::{get, post},
     Router,
+    middleware,
 };
 use axum_extra::typed_header::TypedHeader;
 use base64::{engine::general_purpose, Engine as _};
@@ -397,6 +398,36 @@ fn verify_auth_token(token: &str) -> Result<AuthClaims, Box<dyn std::error::Erro
     Ok(claims)
 }
 
+// Service worker cache busting middleware
+async fn sw_cache_middleware(
+    req: axum::extract::Request<axum::body::Body>,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    let path = req.uri().path();
+
+    if path == "/sw.js" {
+        let mut response = next.run(req).await;
+
+        // Set cache-busting headers for service worker
+        response.headers_mut().insert(
+            header::CACHE_CONTROL,
+            "no-cache, no-store, must-revalidate".parse().unwrap()
+        );
+        response.headers_mut().insert(
+            header::PRAGMA,
+            "no-cache".parse().unwrap()
+        );
+        response.headers_mut().insert(
+            header::EXPIRES,
+            "0".parse().unwrap()
+        );
+
+        response
+    } else {
+        next.run(req).await
+    }
+}
+
 // Note: Authentication middleware is currently disabled
 // To enable authentication, uncomment the auth_middleware function and the middleware layer in main()
 /*
@@ -513,6 +544,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/auth/login", post(login_user))
         // WebSocket endpoint
         .route("/ws", get(websocket_handler))
+        // Apply service worker cache busting middleware
+        .layer(middleware::from_fn(sw_cache_middleware))
         // Apply authentication middleware (temporarily disabled due to type issues)
         // .layer(middleware::from_fn(auth_middleware))
         // Apply other middleware
