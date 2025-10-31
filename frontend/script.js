@@ -562,9 +562,6 @@ class PomodoroTimer {
         // Settings
         document.getElementById('saveSettings').addEventListener('click', () => this.saveSettings());
         document.getElementById('theme').addEventListener('change', (e) => this.changeTheme(e.target.value));
-
-        // Test notification button
-        document.getElementById('testNotificationBtn').addEventListener('click', () => this.testNotification());
     }
 
     async start() {
@@ -884,6 +881,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize the timer
     const timer = new PomodoroTimer();
+
+    // Add test notification button event listener
+    const testNotificationBtn = document.getElementById('testNotificationBtn');
+    if (testNotificationBtn) {
+        testNotificationBtn.addEventListener('click', () => timer.testNotification());
+    } else {
+        console.error('Test notification button not found!');
+    }
 
     // Make timer globally available for debugging
     window.pomodoroTimer = timer;
