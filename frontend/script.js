@@ -562,6 +562,9 @@ class PomodoroTimer {
         // Settings
         document.getElementById('saveSettings').addEventListener('click', () => this.saveSettings());
         document.getElementById('theme').addEventListener('change', (e) => this.changeTheme(e.target.value));
+
+        // Test notification button
+        document.getElementById('testNotificationBtn').addEventListener('click', () => this.testNotification());
     }
 
     async start() {
@@ -763,7 +766,8 @@ class PomodoroTimer {
     }
 
     showNotification(message, type = 'info') {
-        if (!this.settings.notificationsEnabled && type !== 'success') return;
+        // Always show in-app notifications, regardless of settings
+        // The settings only control browser notifications
 
         // Create notification element
         const notification = document.createElement('div');
@@ -777,13 +781,52 @@ class PomodoroTimer {
             notification.remove();
         }, 3000);
 
-        // Browser notification if permitted
+        // Browser notification if permitted and enabled
         if (this.settings.notificationsEnabled && 'Notification' in window &&
-            Notification.permission === 'granted' && !message) {
+            Notification.permission === 'granted') {
             new Notification('Roma Timer', {
-                body: this.getSessionCompleteMessage(),
+                body: message || this.getSessionCompleteMessage(),
                 icon: '/favicon.ico'
             });
+        }
+    }
+
+    async testNotification() {
+        if (!('Notification' in window)) {
+            this.showNotification('Your browser does not support notifications', 'error');
+            return;
+        }
+
+        if (Notification.permission === 'denied') {
+            this.showNotification('Notifications are blocked. Please enable them in your browser settings.', 'error');
+            return;
+        }
+
+        if (Notification.permission === 'default') {
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') {
+                this.showTestNotification();
+            } else {
+                this.showNotification('Notification permission denied', 'error');
+            }
+        } else {
+            this.showTestNotification();
+        }
+    }
+
+    showTestNotification() {
+        // Show in-app notification
+        this.showNotification('Test notification sent! Check your browser notifications.', 'success');
+
+        // Also show browser notification if settings allow
+        if (this.settings.notificationsEnabled) {
+            new Notification('Roma Timer - Test', {
+                body: 'This is a test notification from Roma Timer!',
+                icon: '/favicon.ico',
+                requireInteraction: true
+            });
+        } else {
+            this.showNotification('Enable notifications in settings to receive browser notifications.', 'info');
         }
     }
 
