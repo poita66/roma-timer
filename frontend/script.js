@@ -790,12 +790,12 @@ class PomodoroTimer {
 
     async testNotification() {
         if (!('Notification' in window)) {
-            this.showNotification('Your browser does not support notifications', 'error');
+            this.showMessageDirect('Your browser does not support browser notifications, but in-app notifications will still work.', 'info');
             return;
         }
 
         if (Notification.permission === 'denied') {
-            this.showNotification('Notifications are blocked. Please enable them in your browser settings.', 'error');
+            this.showMessageDirect('Browser notifications are blocked. Please enable them in your browser settings.', 'warning');
             return;
         }
 
@@ -804,11 +804,25 @@ class PomodoroTimer {
             if (permission === 'granted') {
                 this.showTestNotification();
             } else {
-                this.showNotification('Notification permission denied', 'error');
+                this.showMessageDirect('Browser notification permission denied. In-app notifications will still work.', 'info');
             }
         } else {
             this.showTestNotification();
         }
+    }
+
+    showMessageDirect(message, type = 'info') {
+        // Create notification element directly (no browser notification)
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+
+        document.body.appendChild(notification);
+
+        // Remove after 4 seconds (longer for these important messages)
+        setTimeout(() => {
+            notification.remove();
+        }, 4000);
     }
 
     showTestNotification() {
