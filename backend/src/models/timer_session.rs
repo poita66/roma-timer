@@ -180,7 +180,7 @@ impl TimerSession {
             TimerType::ShortBreak | TimerType::LongBreak => TimerType::Work,
         };
 
-        self.timer_type = next_type;
+        self.timer_type = next_type.clone();
         self.duration = next_type.default_duration();
         self.elapsed = 0;
         self.is_running = false;

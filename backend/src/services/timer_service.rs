@@ -172,7 +172,7 @@ impl TimerService {
 
         self.update_elapsed_time(&mut session).await;
 
-        session.timer_type = timer_type;
+        session.timer_type = timer_type.clone();
         session.duration = timer_type.default_duration();
         session.elapsed = 0;
         session.is_running = false;
@@ -284,6 +284,131 @@ impl TimerService {
             }
         }
     }
+
+    /// Get timer state with batch update support for efficiency
+    pub async fn get_timer_state_batch(&self) -> TimerState {
+        let session = self.session.read().await;
+        let work_sessions = *self.work_sessions_completed.lock().await;
+
+        // Batch multiple state updates into a single call
+        let mut timer_state = TimerState {
+            id: session.id.clone(),
+            duration: session.duration,
+            elapsed: session.elapsed,
+            timer_type: format!("{:?}", session.timer_type),
+            is_running: session.is_running,
+            created_at: session.created_at,
+            updated_at: session.updated_at,
+            remaining_seconds: session.remaining_seconds(),
+            progress_percentage: session.progress() * 100.0,
+            session_count: work_sessions,
+        };
+
+        // Update last update timestamp
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        timer_state.updated_at = now;
+
+        timer_state
+    }
+
+    /// Handle concurrent control requests with conflict resolution
+    pub async fn handle_concurrent_request(&self, operation: TimerOperation) -> Result<(), TimerServiceError> {
+        // Acquire write lock with timeout to prevent deadlocks
+        let session = tokio::time::timeout(
+            Duration::from_millis(100),
+            self.session.write()
+        ).await;
+
+        match session {
+            Ok(mut session) => {
+                // Resolve conflicts based on operation type and current state
+                match operation {
+                    TimerOperation::Start => {
+                        if session.is_running {
+                            return Err(TimerServiceError::AlreadyRunning);
+                        }
+                        session.start()?;
+                    }
+                    TimerOperation::Pause => {
+                        if !session.is_running {
+                            return Err(TimerServiceError::NotRunning);
+                        }
+                        session.pause()?;
+                    }
+                    TimerOperation::Reset => {
+                        session.reset();
+                    }
+                    TimerOperation::Skip => {
+                        let config = self.config.read().await;
+                        let mut work_sessions = self.work_sessions_completed.lock().await;
+
+                        self.update_elapsed_time(&mut session).await;
+
+                        if session.timer_type == TimerType::Work && session.elapsed > 0 {
+                            *work_sessions += 1;
+                        }
+
+                        session.skip_to_next(*work_sessions, config.long_break_frequency);
+                    }
+                }
+
+                // Update timestamp for conflict resolution
+                *self.last_update.lock().await = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs();
+
+                Ok(())
+            }
+            Err(_) => Err(TimerServiceError::InternalError("Timeout acquiring lock".to_string())),
+        }
+    }
+
+    /// Get state update with timestamp for synchronization ordering
+    pub async fn get_state_update(&self) -> (TimerState, u64) {
+        let state = self.get_timer_state_batch().await;
+        let timestamp = *self.last_update.lock().await;
+        (state, timestamp)
+    }
+
+    /// Apply state update from another device with conflict resolution
+    pub async fn apply_state_update(&self, incoming_state: TimerState, timestamp: u64) -> bool {
+        // Compare timestamps to resolve conflicts
+        let current_timestamp = *self.last_update.lock().await;
+
+        // Only apply if incoming state is newer
+        if timestamp > current_timestamp {
+            let mut session = self.session.write().await;
+
+            // Apply the incoming state
+            session.id = incoming_state.id;
+            session.duration = incoming_state.duration;
+            session.elapsed = incoming_state.elapsed;
+            session.timer_type = serde_json::from_str(&format!("\"{}\"", incoming_state.timer_type))
+                .unwrap_or(TimerType::Work);
+            session.is_running = incoming_state.is_running;
+            session.updated_at = incoming_state.updated_at;
+
+            // Update our timestamp
+            *self.last_update.lock().await = timestamp;
+
+            return true;
+        }
+
+        false
+    }
+}
+
+/// Timer operation types for conflict resolution
+#[derive(Debug, Clone, PartialEq)]
+pub enum TimerOperation {
+    Start,
+    Pause,
+    Reset,
+    Skip,
 }
 
 /// Timer service errors
@@ -300,12 +425,14 @@ pub enum TimerServiceError {
 
     #[error("Configuration error: {0}")]
     ConfigurationError(String),
+
+    #[error("Internal error: {0}")]
+    InternalError(String),
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio_test;
 
     #[tokio::test]
     async fn test_timer_service_creation() {

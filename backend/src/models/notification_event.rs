@@ -84,7 +84,7 @@ impl NotificationEvent {
         Self {
             id: uuid::Uuid::new_v4().to_string(),
             timer_session_id,
-            event_type,
+            event_type: event_type.clone(),
             message: message.unwrap_or_else(|| event_type.default_message().to_string()),
             created_at: now,
             delivered_at: None,

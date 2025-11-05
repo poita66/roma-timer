@@ -148,6 +148,7 @@ export interface UseTimerReturn {
   loading: boolean;
   error: string | null;
   isConnected: boolean;
+  syncStatus: 'synced' | 'syncing' | 'conflict' | 'offline';
 }
 
 export interface UseWebSocketReturn {

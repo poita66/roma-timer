@@ -143,38 +143,38 @@ description: "Task list template for feature implementation"
 
 ### Tests for User Story 2 (MANDATORY) ⚠️
 
-- [ ] T049 [P] [US2] Integration test for WebSocket synchronization in backend/tests/integration/test_websocket_sync.rs
-- [ ] T050 [P] [US2] Integration test for multi-device connection handling in backend/tests/integration/test_multi_device.rs
-- [ ] T051 [P] [US2] Component test for WebSocket reconnection in frontend/src/services/__tests__/websocket.test.ts
-- [ ] T052 [P] [US2] E2E test for cross-device synchronization in frontend/src/__tests__/e2e/sync-flow.test.ts
+- [x] T049 [P] [US2] Integration test for WebSocket synchronization in backend/tests/integration/test_websocket_sync.rs
+- [x] T050 [P] [US2] Integration test for multi-device connection handling in backend/tests/integration/test_multi_device.rs
+- [x] T051 [P] [US2] Component test for WebSocket reconnection in frontend/src/services/__tests__/websocket.test.ts
+- [x] T052 [P] [US2] E2E test for cross-device synchronization in frontend/src/__tests__/e2e/sync-flow.test.ts
 
 ### Implementation for User Story 2
 
 **Backend WebSocket Enhancements**
-- [ ] T053 [P] [US2] Implement device connection tracking in backend/src/models/device_connection.rs
-- [ ] T054 [P] [US2] Add connection lifecycle management in backend/src/services/websocket_service.rs
-- [ ] T055 [P] [US2] Implement connection heartbeat monitoring in backend/src/services/websocket_service.rs
-- [ ] T056 [US2] Add graceful connection cleanup on disconnect in backend/src/services/websocket_service.rs
+- [x] T053 [P] [US2] Implement device connection tracking in backend/src/models/device_connection.rs
+- [x] T054 [P] [US2] Add connection lifecycle management in backend/src/services/websocket_service.rs
+- [x] T055 [P] [US2] Implement connection heartbeat monitoring in backend/src/services/websocket_service.rs
+- [x] T056 [US2] Add graceful connection cleanup on disconnect in backend/src/services/websocket_service.rs
 
 **Backend Multi-Device Logic**
-- [ ] T057 [US2] Implement timer state broadcasting to all connected devices in backend/src/services/timer_service.rs
-- [ ] T058 [US2] Add concurrent device support with connection pooling in backend/src/services/websocket_service.rs
-- [ ] T059 [US2] Handle simultaneous control requests from multiple devices in backend/src/services/timer_service.rs
+- [x] T057 [US2] Implement timer state broadcasting to all connected devices in backend/src/services/timer_service.rs
+- [x] T058 [US2] Add concurrent device support with connection pooling in backend/src/services/websocket_service.rs
+- [x] T059 [US2] Handle simultaneous control requests from multiple devices in backend/src/services/timer_service.rs
 
 **Frontend WebSocket Client**
-- [ ] T060 [P] [US2] Enhance WebSocket client with reconnection logic in frontend/src/services/websocket.ts
-- [ ] T061 [P] [US2] Add connection status indicators in frontend/src/hooks/useWebSocket.ts
-- [ ] T062 [P] [US2] Implement exponential backoff reconnection in frontend/src/services/websocket.ts
+- [x] T060 [P] [US2] Enhance WebSocket client with reconnection logic in frontend/src/services/websocket.ts
+- [x] T061 [P] [US2] Add connection status indicators in frontend/src/hooks/useWebSocket.ts
+- [x] T062 [P] [US2] Implement exponential backoff reconnection in frontend/src/services/websocket.ts
 
 **Frontend Sync Integration**
-- [ ] T063 [P] [US2] Integrate WebSocket updates with timer state in frontend/src/hooks/useTimer.ts
-- [ ] T064 [P] [US2] Add sync status UI elements in frontend/src/pages/TimerScreen.tsx
-- [ ] T065 [P] [US2] Handle sync conflicts and resolution in frontend/src/hooks/useTimer.ts
+- [x] T063 [P] [US2] Integrate WebSocket updates with timer state in frontend/src/hooks/useTimer.ts
+- [x] T064 [P] [US2] Add sync status UI elements in frontend/src/pages/TimerScreen.tsx
+- [x] T065 [P] [US2] Handle sync conflicts and resolution in frontend/src/hooks/useTimer.ts
 
 **Performance Optimization**
-- [ ] T066 [US2] Optimize WebSocket message broadcasting for 50+ concurrent sessions in backend/src/services/websocket_service.rs
-- [ ] T067 [US2] Add message batching for efficient state updates in backend/src/services/timer_service.rs
-- [ ] T068 [US2] Implement sub-500ms synchronization timing in backend/src/services/websocket_service.rs
+- [x] T066 [US2] Optimize WebSocket message broadcasting for 50+ concurrent sessions in backend/src/services/websocket_service.rs
+- [x] T067 [US2] Add message batching for efficient state updates in backend/src/services/timer_service.rs
+- [x] T068 [US2] Implement sub-500ms synchronization timing in backend/src/services/websocket_service.rs
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently and together
 
