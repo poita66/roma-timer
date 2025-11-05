@@ -42,13 +42,13 @@ description: "Task list template for feature implementation"
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create project structure per implementation plan
-- [ ] T002 Initialize Rust backend with Tokio dependencies
-- [ ] T003 Initialize React Native PWA frontend with Expo
-- [ ] T004 [P] Configure clippy (Rust) and ESLint (React Native) with zero-warning policies
-- [ ] T005 [P] Setup SQLite database migrations framework
-- [ ] T006 [P] Setup basic Axum web server with health check endpoint
-- [ ] T007 [P] Setup development build scripts and Docker configuration
+- [x] T001 Create project structure per implementation plan
+- [x] T002 Initialize Rust backend with Tokio dependencies
+- [x] T003 Initialize React Native PWA frontend with Expo
+- [x] T004 [P] Configure clippy (Rust) and ESLint (React Native) with zero-warning policies
+- [x] T005 [P] Setup SQLite database migrations framework
+- [x] T006 [P] Setup basic Axum web server with health check endpoint
+- [x] T007 [P] Setup development build scripts and Docker configuration
 
 ---
 
@@ -58,16 +58,16 @@ description: "Task list template for feature implementation"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T008 Setup SQLite database schema and migrations for timer sessions
-- [ ] T009 [P] Implement shared-secret authentication middleware
-- [ ] T010 [P] Setup WebSocket connection handling with tokio-tungstenite
-- [ ] T011 [P] Setup API routing and middleware structure with <200ms response goals
-- [ ] T012 Create base TimerSession model with validation rules
-- [ ] T013 Create base UserConfiguration model with default values
-- [ ] T014 Configure error handling and structured logging for debugging
-- [ ] T015 Setup environment configuration management for shared secret and database
-- [ ] T016 Create basic WebSocket message broadcasting system
-- [ ] T017 [P] Setup embedded PWA serving using include_dir crate
+- [x] T008 Setup SQLite database schema and migrations for timer sessions
+- [x] T009 [P] Implement shared-secret authentication middleware
+- [x] T010 [P] Setup WebSocket connection handling with tokio-tungstenite
+- [x] T011 [P] Setup API routing and middleware structure with <200ms response goals
+- [x] T012 Create base TimerSession model with validation rules
+- [x] T013 Create base UserConfiguration model with default values
+- [x] T014 Configure error handling and structured logging for debugging
+- [x] T015 Setup environment configuration management for shared secret and database
+- [x] T016 Create basic WebSocket message broadcasting system
+- [x] T017 [P] Setup embedded PWA serving using include_dir crate
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 

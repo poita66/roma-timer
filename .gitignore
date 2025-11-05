@@ -14,6 +14,19 @@ release/
 *.sqlite
 *.sqlite3
 
+# Node.js/JavaScript/TypeScript
+node_modules/
+dist/
+build/
+*.log
+*.tsbuildinfo
+
+# Frontend development
+.eslintcache
+.nyc_output
+coverage/
+.cache/
+
 # OS
 .DS_Store
 Thumbs.db
