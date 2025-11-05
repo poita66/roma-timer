@@ -9,6 +9,10 @@ use tokio::sync::{mpsc, Mutex};
 mod database;
 use database::Database;
 
+mod models;
+mod services;
+mod api;
+
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},

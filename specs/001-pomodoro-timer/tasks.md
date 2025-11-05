@@ -83,53 +83,53 @@ description: "Task list template for feature implementation"
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T018 [P] [US1] Unit test for TimerSession model in backend/tests/unit/test_timer_session.rs
-- [ ] T019 [P] [US1] Unit test for timer control logic in backend/tests/unit/test_timer_service.rs
-- [ ] T020 [P] [US1] Integration test for timer API endpoints in backend/tests/integration/test_timer_api.rs
-- [ ] T021 [P] [US1] Component test for TimerDisplay component in frontend/src/components/TimerDisplay/__tests__/TimerDisplay.test.tsx
-- [ ] T022 [P] [US1] Component test for TimerControls component in frontend/src/components/TimerControls/__tests__/TimerControls.test.tsx
-- [ ] T023 [P] [US1] E2E test for complete timer flow in frontend/src/__tests__/e2e/timer-flow.test.ts
+- [x] T018 [P] [US1] Unit test for TimerSession model in backend/tests/unit/test_timer_session.rs
+- [x] T019 [P] [US1] Unit test for timer control logic in backend/tests/unit/test_timer_service.rs
+- [x] T020 [P] [US1] Integration test for timer API endpoints in backend/tests/integration/test_timer_api.rs
+- [x] T021 [P] [US1] Component test for TimerDisplay component in frontend/src/components/TimerDisplay/__tests__/TimerDisplay.test.tsx
+- [x] T022 [P] [US1] Component test for TimerControls component in frontend/src/components/TimerControls/__tests__/TimerControls.test.tsx
+- [x] T023 [P] [US1] E2E test for complete timer flow in frontend/src/__tests__/e2e/timer-flow.test.ts
 
 ### Implementation for User Story 1
 
 **Backend Timer Logic**
-- [ ] T024 [P] [US1] Create TimerSession model in backend/src/models/timer_session.rs
-- [ ] T025 [P] [US1] Create TimerService with countdown logic in backend/src/services/timer_service.rs
-- [ ] T026 [US1] Implement timer state machine with session transitions in backend/src/services/timer_service.rs
-- [ ] T027 [US1] Create background task for timer countdown updates in backend/src/services/timer_service.rs
+- [x] T024 [P] [US1] Create TimerSession model in backend/src/models/timer_session.rs
+- [x] T025 [P] [US1] Create TimerService with countdown logic in backend/src/services/timer_service.rs
+- [x] T026 [US1] Implement timer state machine with session transitions in backend/src/services/timer_service.rs
+- [x] T027 [US1] Create background task for timer countdown updates in backend/src/services/timer_service.rs
 
 **Backend API Endpoints**
-- [ ] T028 [US1] Implement GET /api/timer endpoint in backend/src/api/timer.rs
-- [ ] T029 [US1] Implement POST /api/timer/start endpoint in backend/src/api/timer.rs
-- [ ] T030 [US1] Implement POST /api/timer/pause endpoint in backend/src/api/timer.rs
-- [ ] T031 [US1] Implement POST /api/timer/reset endpoint in backend/src/api/timer.rs
-- [ ] T032 [US1] Implement POST /api/timer/skip endpoint in backend/src/api/timer.rs
+- [x] T028 [US1] Implement GET /api/timer endpoint in backend/src/api/timer.rs
+- [x] T029 [US1] Implement POST /api/timer/start endpoint in backend/src/api/timer.rs
+- [x] T030 [US1] Implement POST /api/timer/pause endpoint in backend/src/api/timer.rs
+- [x] T031 [US1] Implement POST /api/timer/reset endpoint in backend/src/api/timer.rs
+- [x] T032 [US1] Implement POST /api/timer/skip endpoint in backend/src/api/timer.rs
 
 **Backend WebSocket Integration**
-- [ ] T033 [US1] Add timer state broadcasting to WebSocket service in backend/src/services/websocket_service.rs
-- [ ] T034 [US1] Integrate timer service with WebSocket message broadcasting in backend/src/main.rs
+- [x] T033 [US1] Add timer state broadcasting to WebSocket service in backend/src/services/websocket_service.rs
+- [x] T034 [US1] Integrate timer service with WebSocket message broadcasting in backend/src/main.rs
 
 **Frontend Timer Display**
-- [ ] T035 [P] [US1] Create TimerSession TypeScript interface in frontend/src/types/index.ts
-- [ ] T036 [P] [US1] Create TimerDisplay component with countdown in frontend/src/components/TimerDisplay/TimerDisplay.tsx
-- [ ] T037 [P] [US1] Create useTimer hook for timer state management in frontend/src/hooks/useTimer.ts
-- [ ] T038 [US1] Add timer session type display (Work/ShortBreak/LongBreak) in frontend/src/components/TimerDisplay/TimerDisplay.tsx
+- [x] T035 [P] [US1] Create TimerSession TypeScript interface in frontend/src/types/index.ts
+- [x] T0336 [P] [US1] Create TimerDisplay component with countdown in frontend/src/components/TimerDisplay/TimerDisplay.tsx
+- [x] T037 [P] [US1] Create useTimer hook for timer state management in frontend/src/hooks/useTimer.ts
+- [x] T038 [US1] Add timer session type display (Work/ShortBreak/LongBreak) in frontend/src/components/TimerDisplay/TimerDisplay.tsx
 
 **Frontend Timer Controls**
-- [ ] T039 [P] [US1] Create TimerControls component with play/pause buttons in frontend/src/components/TimerControls/TimerControls.tsx
-- [ ] T040 [P] [US1] Create reset and skip controls in frontend/src/components/TimerControls/TimerControls.tsx
-- [ ] T041 [P] [US1] Add keyboard accessibility (Space, R, S keys) in frontend/src/components/TimerControls/TimerControls.tsx
-- [ ] T042 [P] [US1] Add ARIA labels and screen reader support in frontend/src/components/TimerControls/TimerControls.tsx
+- [x] T039 [P] [US1] Create TimerControls component with play/pause buttons in frontend/src/components/TimerControls/TimerControls.tsx
+- [x] T040 [P] [US1] Create reset and skip controls in frontend/src/components/TimerControls/TimerControls.tsx
+- [x] T041 [P] [US1] Add keyboard accessibility (Space, R, S keys) in frontend/src/components/TimerControls/TimerControls.tsx
+- [x] T042 [P] [US1] Add ARIA labels and screen reader support in frontend/src/components/TimerControls/TimerControls.tsx
 
 **Frontend API Integration**
-- [ ] T043 [P] [US1] Create API client for timer endpoints in frontend/src/services/api.ts
-- [ ] T044 [P] [US1] Create WebSocket client for real-time updates in frontend/src/services/websocket.ts
-- [ ] T045 [US1] Integrate API calls with timer controls in frontend/src/hooks/useTimer.ts
+- [x] T043 [P] [US1] Create API client for timer endpoints in frontend/src/services/api.ts
+- [x] T044 [P] [US1] Create WebSocket client for real-time updates in frontend/src/services/websocket.ts
+- [x] T045 [US1] Integrate API calls with timer controls in frontend/src/hooks/useTimer.ts
 
 **Frontend Main Screen**
-- [ ] T046 [US1] Create TimerScreen with timer display and controls in frontend/src/pages/TimerScreen.tsx
-- [ ] T047 [US1] Add responsive design for various screen sizes in frontend/src/pages/TimerScreen.tsx
-- [ ] T048 [US1] Add loading and error states in frontend/src/pages/TimerScreen.tsx
+- [x] T046 [US1] Create TimerScreen with timer display and controls in frontend/src/pages/TimerScreen.tsx
+- [x] T047 [US1] Add responsive design for various screen sizes in frontend/src/pages/TimerScreen.tsx
+- [x] T048 [US1] Add loading and error states in frontend/src/pages/TimerScreen.tsx
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and independently testable
 
