@@ -7,6 +7,8 @@ use std::env;
 use std::path::PathBuf;
 use tracing::{info, warn};
 
+use crate::database::DatabaseType;
+
 /// Application configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -18,6 +20,10 @@ pub struct Config {
 
     /// Database URL
     pub database_url: String,
+
+    /// Database type (automatically detected from database_url)
+    #[serde(skip)]
+    pub database_type: DatabaseType,
 
     /// Shared secret for authentication
     pub shared_secret: String,
@@ -58,10 +64,12 @@ pub struct Config {
 
 impl Default for Config {
     fn default() -> Self {
+        let database_url = "sqlite:roma-timer.db".to_string();
         Self {
             host: "0.0.0.0".to_string(),
             port: 3000,
-            database_url: "sqlite:roma-timer.db".to_string(),
+            database_type: DatabaseType::from_url(&database_url),
+            database_url,
             shared_secret: "change-me-in-production".to_string(),
             environment: "development".to_string(),
             log_level: "info".to_string(),
@@ -95,7 +103,19 @@ impl Config {
 
         // Database configuration
         if let Ok(database_url) = env::var("ROMA_TIMER_DATABASE_URL") {
-            config.database_url = database_url;
+            config.database_url = database_url.clone();
+            config.database_type = DatabaseType::from_url(&database_url);
+        } else if let Ok(database_url) = env::var("DATABASE_URL") {
+            // Support generic DATABASE_URL for compatibility
+            config.database_url = database_url.clone();
+            config.database_type = DatabaseType::from_url(&database_url);
+        } else if let Ok(postgres_url) = env::var("POSTGRES_URL") {
+            // Support POSTGRES_URL for PostgreSQL
+            config.database_url = postgres_url.clone();
+            config.database_type = DatabaseType::Postgres;
+        } else {
+            // Update database_type based on default database_url
+            config.database_type = DatabaseType::from_url(&config.database_url);
         }
 
         // Data directory
@@ -320,6 +340,25 @@ impl Config {
             }
         } else {
             "***".to_string()
+        }
+    }
+
+    /// Get the database URL for logging (masked for security)
+    pub fn masked_database_url(&self) -> String {
+        match self.database_type {
+            DatabaseType::Sqlite => {
+                // For SQLite, show the filename
+                if self.database_url.contains("roma-timer.db") {
+                    "sqlite:roma-timer.db".to_string()
+                } else {
+                    // Show only the filename part
+                    self.database_url.split(':').last().unwrap_or("database.db").to_string()
+                }
+            }
+            DatabaseType::Postgres => {
+                // For PostgreSQL, mask the password
+                "postgres://user:***@localhost/roma_timer".to_string()
+            }
         }
     }
 }

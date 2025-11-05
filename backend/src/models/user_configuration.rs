@@ -239,7 +239,7 @@ impl UserConfiguration {
     }
 
     /// Update the updated_at timestamp
-    fn touch(&mut self) {
+    pub fn touch(&mut self) {
         self.updated_at = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()

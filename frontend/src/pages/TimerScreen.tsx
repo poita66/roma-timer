@@ -6,6 +6,8 @@ import {
   BackHandler,
   AppStateStatus,
   AppState,
+  Text,
+  TouchableOpacity,
 } from 'react-native';
 import { TimerDisplay } from '../components/TimerDisplay';
 import { TimerControls } from '../components/TimerControls';
@@ -22,6 +24,7 @@ const TimerScreen: React.FC = () => {
     loading,
     error,
     isConnected,
+    syncStatus,
   } = useTimer();
 
   // Handle app state changes (background/foreground)
@@ -113,12 +116,45 @@ const TimerScreen: React.FC = () => {
     }
   };
 
+  // Helper functions for sync status display
+  const getSyncStatusText = (): string => {
+    if (!isConnected) {
+      return 'Offline';
+    }
+
+    switch (syncStatus) {
+      case 'synced':
+        return 'Connected';
+      case 'syncing':
+        return 'Syncing...';
+      case 'conflict':
+        return 'Conflict';
+      case 'offline':
+        return 'Offline';
+      default:
+        return 'Unknown';
+    }
+  };
+
+  const getSyncStatusEmoji = (): string => {
+    switch (syncStatus) {
+      case 'synced':
+        return '✓';
+      case 'syncing':
+        return '⟳';
+      case 'conflict':
+        return '⚠';
+      default:
+        return '';
+    }
+  };
+
   // Determine theme (could be from user configuration in the future)
   const theme = 'light'; // For now, default to light theme
 
   return (
     <View style={[styles.container, styles[`${theme}Container`]]}>
-      {/* Connection Status Indicator */}
+      {/* Connection and Sync Status Bar */}
       <View style={styles.connectionBar}>
         <View
           style={[
@@ -128,13 +164,46 @@ const TimerScreen: React.FC = () => {
         />
         <View style={styles.statusText}>
           <Text style={[styles.statusText, styles[`${theme}Text`]]}>
-            {isConnected ? 'Connected' : 'Offline'}
+            {getSyncStatusText()}
           </Text>
         </View>
+
+        {/* Sync Status Indicator */}
+        {syncStatus !== 'offline' && (
+          <View style={styles.syncContainer}>
+            <View
+              style={[
+                styles.syncIndicator,
+                styles[`${syncStatus}Indicator`]
+              ]}
+            />
+            <Text style={[styles.syncText, styles[`${theme}Text`]]}>
+              {getSyncStatusEmoji()}
+            </Text>
+          </View>
+        )}
       </View>
 
+      {/* Sync Status Message */}
+      {syncStatus === 'conflict' && (
+        <TouchableOpacity
+          style={styles.conflictBar}
+          onPress={() => {
+            Alert.alert(
+              'Sync Conflict',
+              'Multiple devices tried to control the timer simultaneously. Timer state has been automatically resolved.',
+              [{ text: 'OK' }]
+            );
+          }}
+        >
+          <Text style={[styles.conflictText, styles[`${theme}ErrorText`]]}>
+            ⚠️ Sync conflict detected - Tap for details
+          </Text>
+        </TouchableOpacity>
+      )}
+
       {/* Error Display */}
-      {error && (
+      {error && syncStatus !== 'conflict' && (
         <View style={styles.errorContainer}>
           <Text style={[styles.errorText, styles[`${theme}ErrorText`]]}>
             {error}
@@ -301,6 +370,46 @@ const styles = StyleSheet.create({
   },
   darkSubText: {
     color: '#cccccc',
+  },
+  // Sync status styles
+  syncContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 'auto',
+    paddingLeft: 10,
+  },
+  syncIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 4,
+  },
+  syncedIndicator: {
+    backgroundColor: '#4CAF50',
+  },
+  syncingIndicator: {
+    backgroundColor: '#2196F3',
+  },
+  conflictIndicator: {
+    backgroundColor: '#FF9800',
+  },
+  syncText: {
+    fontSize: 12,
+    opacity: 0.7,
+  },
+  conflictBar: {
+    backgroundColor: '#FFF3CD',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginVertical: 5,
+    borderRadius: 4,
+    borderLeftWidth: 3,
+    borderLeftColor: '#FF9800',
+  },
+  conflictText: {
+    fontSize: 12,
+    fontWeight: '500',
+    textAlign: 'center',
   },
 });
 

@@ -249,6 +249,205 @@ class WebSocketService {
   }
 
   private reconnectTimeout: number | null = null;
+
+  // Force immediate reconnection
+  public forceReconnect(): void {
+    this.disconnect();
+    this.reconnectAttempts = 0;
+    this.connect();
+  }
+
+  // Get current connection statistics
+  public getConnectionStats(): {
+    reconnectAttempts: number;
+    maxReconnectAttempts: number;
+    isConnected: boolean;
+    connectionStatus: ConnectionStatus;
+  } {
+    return {
+      reconnectAttempts: this.reconnectAttempts,
+      maxReconnectAttempts: this.maxReconnectAttempts,
+      isConnected: this.isConnected(),
+      connectionStatus: this.getConnectionStatus(),
+    };
+  }
+
+  // Send heartbeat/ping to keep connection alive
+  public sendPing(): void {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      try {
+        this.ws.send(JSON.stringify({ type: 'Ping' }));
+      } catch (error) {
+        console.error('Failed to send ping:', error);
+        this.notifyError(error as Error);
+      }
+    }
+  }
+
+  // Start automatic heartbeat
+  private startHeartbeat(): void {
+    // Send ping every 30 seconds
+    this.heartbeatInterval = window.setInterval(() => {
+      this.sendPing();
+    }, 30000);
+  }
+
+  // Stop automatic heartbeat
+  private stopHeartbeat(): void {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+  }
+
+  // Enhanced connection establishment with device identification
+  private establishConnection(): void {
+    if (this.isDestroyed || this.isConnecting || this.ws?.readyState === WebSocket.OPEN) {
+      return;
+    }
+
+    this.isConnecting = true;
+
+    try {
+      const url = this.getWebSocketUrlWithDeviceInfo();
+      this.ws = new WebSocket(url);
+
+      // Setup event handlers
+      this.ws.onopen = this.handleOpen.bind(this);
+      this.ws.onmessage = this.handleMessage.bind(this);
+      this.ws.onclose = this.handleClose.bind(this);
+      this.ws.onerror = this.handleError.bind(this);
+
+    } catch (error) {
+      this.isConnecting = false;
+      console.error('Failed to create WebSocket connection:', error);
+      this.notifyError(error as Error);
+      this.scheduleReconnect();
+    }
+  }
+
+  // Enhanced WebSocket URL with device information
+  private getWebSocketUrlWithDeviceInfo(): string {
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsHost = process.env.REACT_APP_WS_URL ||
+                  process.env.EXPO_PUBLIC_WS_URL ||
+                  window.location.host;
+
+    const sharedSecret = process.env.REACT_APP_SHARED_SECRET ||
+                        process.env.EXPO_PUBLIC_SHARED_SECRET;
+
+    let url = `${wsProtocol}//${wsHost}/ws`;
+
+    // Add query parameters for device identification
+    const params = new URLSearchParams();
+
+    if (sharedSecret) {
+      params.append('token', sharedSecret);
+    }
+
+    // Add device identification
+    const deviceId = this.getOrCreateDeviceId();
+    params.append('device_id', deviceId);
+
+    const userAgent = navigator.userAgent;
+    params.append('user_agent', userAgent);
+
+    url += `?${params.toString()}`;
+    return url;
+  }
+
+  // Get or create persistent device ID
+  private getOrCreateDeviceId(): string {
+    const storageKey = 'roma-timer-device-id';
+    let deviceId = localStorage.getItem(storageKey);
+
+    if (!deviceId) {
+      deviceId = `device-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem(storageKey, deviceId);
+    }
+
+    return deviceId;
+  }
+
+  // Enhanced message handling with device synchronization
+  private handleMessage(event: MessageEvent): void {
+    try {
+      const message: WebSocketMessage = JSON.parse(event.data);
+
+      // Handle different message types
+      switch (message.type) {
+        case 'TimerStateUpdate':
+          // Validate timestamp to prevent stale updates
+          if (message.payload?.timestamp) {
+            const now = Date.now();
+            const messageAge = now - message.payload.timestamp;
+
+            // Reject messages older than 10 seconds
+            if (messageAge > 10000) {
+              console.warn('Received stale timer state update, ignoring');
+              return;
+            }
+          }
+          break;
+
+        case 'ConnectionStatus':
+          // Update device count and connection info
+          if (message.payload?.device_count !== undefined) {
+            console.log(`Connected devices: ${message.payload.device_count}`);
+          }
+          break;
+
+        case 'Notification':
+          // Handle notifications (timer completion, etc.)
+          this.handleNotification(message);
+          break;
+
+        case 'ConfigurationUpdate':
+          // Handle configuration changes from other devices
+          this.handleConfigurationUpdate(message);
+          break;
+      }
+
+      this.notifyMessage(message);
+    } catch (error) {
+      console.error('Failed to parse WebSocket message:', error);
+      this.notifyError(error as Error);
+    }
+  }
+
+  // Handle notification messages
+  private handleNotification(message: WebSocketMessage): void {
+    if (message.type === 'Notification' && message.payload?.message) {
+      // Show browser notification if page is not visible
+      if (!document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+        new Notification('Roma Timer', {
+          body: message.payload.message,
+          icon: '/icon-192x192.png',
+          tag: 'roma-timer',
+        });
+      }
+
+      // Also show in-app notification
+      console.log('Timer Notification:', message.payload.message);
+    }
+  }
+
+  // Handle configuration updates from other devices
+  private handleConfigurationUpdate(message: WebSocketMessage): void {
+    if (message.type === 'ConfigurationUpdate' && message.payload) {
+      // Emit custom event for configuration updates
+      window.dispatchEvent(new CustomEvent('configurationUpdate', {
+        detail: message.payload
+      }));
+    }
+  }
+
+  private heartbeatInterval: number | null = null;
+
+  // Override the connect method to use enhanced connection
+  public connect(): void {
+    this.establishConnection();
+  }
 }
 
 // Export singleton instance

@@ -6,12 +6,14 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::{mpsc, Mutex};
 
+mod config;
 mod database;
-use database::Database;
-
 mod models;
 mod services;
 mod api;
+
+use config::Config;
+use database::DatabaseManager;
 
 use axum::{
     extract::{
@@ -133,11 +135,11 @@ pub struct WebSocketManager {
     pub connections: Arc<Mutex<HashMap<String, Connection>>>,
     pub senders: Arc<Mutex<HashMap<String, WsSender>>>,
     pub timer_state: Arc<Mutex<TimerState>>,
-    pub database: Arc<Database>,
+    pub database: Arc<DatabaseManager>,
 }
 
 impl WebSocketManager {
-    pub fn new(timer_state: Arc<Mutex<TimerState>>, database: Arc<Database>) -> Self {
+    pub fn new(timer_state: Arc<Mutex<TimerState>>, database: Arc<DatabaseManager>) -> Self {
         Self {
             connections: Arc::new(Mutex::new(HashMap::new())),
             senders: Arc::new(Mutex::new(HashMap::new())),
@@ -476,19 +478,34 @@ async fn auth_middleware(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize logging
-    tracing_subscriber::fmt::init();
+    // Load configuration
+    let config = Config::from_env()?;
 
-    // Get port from environment or use default
-    let port = env::var("PORT").unwrap_or_else(|_| "3000".to_string());
-    let addr = format!("0.0.0.0:{port}");
+    // Initialize logging with the configured log level
+    let log_level = match config.log_level.as_str() {
+        "error" => tracing::Level::ERROR,
+        "warn" => tracing::Level::WARN,
+        "info" => tracing::Level::INFO,
+        "debug" => tracing::Level::DEBUG,
+        "trace" => tracing::Level::TRACE,
+        _ => tracing::Level::INFO,
+    };
 
-    // Initialize database
-    let database = Arc::new(Database::new().await?);
-    println!("🗄️  Database initialized successfully");
+    tracing_subscriber::fmt()
+        .with_max_level(log_level)
+        .init();
+
+    println!("🚀 Starting Roma Timer backend on {}:{}", config.host, config.port);
+    println!("🗄️  Database type: {}", config.database_type);
+    println!("📊 Database URL: {}", config.masked_database_url());
+
+    // Initialize database manager
+    let database_manager = Arc::new(DatabaseManager::new(&config.database_url).await?);
+    database_manager.migrate().await?;
+    println!("✅ Database initialized and migrated successfully");
 
     // Load initial state from database or use defaults
-    let initial_state = match database.get_current_timer_state().await? {
+    let initial_state = match database_manager.get_current_timer_state().await? {
         Some(state) => {
             println!("📋 Loaded timer state from database");
             state
@@ -514,10 +531,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let shared_state = SharedState::new(Mutex::new(initial_state.clone()));
-    let ws_manager = SharedWsManager::new(WebSocketManager::new(
-        shared_state.clone(),
-        database.clone(),
-    ));
+    let ws_manager = SharedWsManager::new(WebSocketManager::new(shared_state.clone(), database_manager.clone()));
 
     // Create CORS layer
     let cors = CorsLayer::new()
@@ -561,10 +575,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_state((shared_state, ws_manager));
 
     // Start server
-    println!("🍅 Roma Timer server starting on http://{addr}");
-    println!("📱 Frontend will be available at http://localhost:{port}/");
-    println!("🔧 API available at http://localhost:{port}/api/");
-    println!("🌐 WebSocket available at ws://localhost:{port}/ws");
+    let addr = config.bind_address();
+    println!("🍅 Roma Timer server starting on http://{}", addr);
+    println!("📱 Frontend will be available at http://localhost:{}/", config.port);
+    println!("🔧 API available at http://localhost:{}/api/", config.port);
+    println!("🌐 WebSocket available at ws://localhost:{}/ws", config.port);
 
     let listener = TcpListener::bind(&addr).await?;
     axum::serve(listener, app).await?;
@@ -823,17 +838,13 @@ async fn register_user(
     };
 
     // Create user
-    match database
-        .create_user(&request.username, &password_hash, &salt)
-        .await
-    {
-        Ok(user) => {
-            let user_id = user.id.unwrap_or(0).to_string();
+    match database.create_user(&request.username, &password_hash, &salt).await {
+        Ok(user_id) => {
             println!("✅ User registered successfully: {}", request.username);
             Ok(Json(RegisterResponse {
                 message: "User registered successfully".to_string(),
                 user_id,
-                username: user.username,
+                username: request.username.clone(),
             }))
         }
         Err(e) => {
@@ -859,7 +870,7 @@ async fn login_user(
             let pepper = get_pepper();
             if verify_password(&request.password, &user.salt, &pepper, &user.password_hash) {
                 // Generate auth token
-                let user_id = user.id.unwrap_or(0).to_string();
+                let user_id = user.id.clone();
                 match generate_auth_token(&user_id) {
                     Ok(token) => {
                         let claims = verify_auth_token(&token).unwrap(); // Should succeed

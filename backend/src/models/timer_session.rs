@@ -34,6 +34,15 @@ impl TimerType {
         }
     }
 
+    /// Get duration from user configuration
+    pub fn get_duration_from_config(&self, config: &crate::models::user_configuration::UserConfiguration) -> u32 {
+        match self {
+            TimerType::Work => config.work_duration,
+            TimerType::ShortBreak => config.short_break_duration,
+            TimerType::LongBreak => config.long_break_duration,
+        }
+    }
+
     /// Get display name for this timer type
     pub fn display_name(&self) -> &'static str {
         match self {
@@ -180,8 +189,32 @@ impl TimerSession {
             TimerType::ShortBreak | TimerType::LongBreak => TimerType::Work,
         };
 
-        self.timer_type = next_type;
-        self.duration = next_type.default_duration();
+        self.timer_type = next_type.clone();
+        self.duration = next_type.default_duration(); // Will be updated with config duration
+        self.elapsed = 0;
+        self.is_running = false;
+        self.updated_at = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+    }
+
+    /// Skip to next session type with configuration-based durations
+    pub fn skip_to_next_with_config(&mut self, work_sessions_completed: u32, config: &crate::models::user_configuration::UserConfiguration) {
+        let next_type = match self.timer_type {
+            TimerType::Work => {
+                // After work, check if it's time for a long break
+                if work_sessions_completed % config.long_break_frequency == 0 {
+                    TimerType::LongBreak
+                } else {
+                    TimerType::ShortBreak
+                }
+            }
+            TimerType::ShortBreak | TimerType::LongBreak => TimerType::Work,
+        };
+
+        self.timer_type = next_type.clone();
+        self.duration = next_type.get_duration_from_config(config);
         self.elapsed = 0;
         self.is_running = false;
         self.updated_at = SystemTime::now()

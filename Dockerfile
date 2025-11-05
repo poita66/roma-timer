@@ -1,6 +1,6 @@
 # Multi-stage build for Roma Timer
-# Stage 1: Build the Rust backend
-FROM rust:1.83 as backend-builder
+# Stage 1: Build the Rust backend using nightly for edition2024 support
+FROM rustlang/rust:nightly as backend-builder
 
 WORKDIR /app
 
@@ -13,9 +13,9 @@ RUN apt-get update && apt-get install -y \
 # Copy backend source
 COPY backend/ ./backend/
 
-# Build the backend
+# Build the backend with SQLite support (default) using locked dependencies
 WORKDIR /app/backend
-RUN cargo build --release
+RUN cargo build --release --features sqlite --locked
 
 # Stage 2: Build the frontend (simple copy for vanilla JS)
 FROM alpine:latest as frontend-builder
@@ -60,6 +60,11 @@ USER roma-timer
 
 # Expose port
 EXPOSE 3000
+
+# Environment variables for SQLite
+ENV DATABASE_URL="sqlite:/app/data/roma-timer.db"
+ENV ROMA_TIMER_HOST="0.0.0.0"
+ENV ROMA_TIMER_PORT="3000"
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

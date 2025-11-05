@@ -13,7 +13,7 @@ path = "src/main.rs"
 # Web framework
 axum = { version = "0.7", features = ["ws"] }
 tokio = { version = "1.0", features = ["full"] }
-tower = "0.4"
+tower = { version = "0.4", features = ["util"] }
 tower-http = { version = "0.5", features = ["fs", "cors", "trace"] }
 
 # WebSocket support
@@ -23,6 +23,16 @@ tokio-tungstenite = "0.21"
 headers = "0.4"
 
 # Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Fix for edition2024 compatibility issues - pin home crate
+home = "=0.5.9"
 
 # UUID generation
 uuid = { version = "1.0", features = ["v4", "serde"] }
@@ -31,16 +41,40 @@ uuid = { version = "1.0", features = ["v4", "serde"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
 
-# JSON file storage (keeping for backwards compatibility)
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-chrono = { version = "0.4", features = ["serde"] }
+# Database support with conditional features
+sqlx = { version = "0.7", default-features = false, features = ["runtime-tokio-rustls", "chrono", "uuid", "macros", "any"] }
 
-# SQLite database
-sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid"] }
+# SQLite support (default)
+sqlx-sqlite = { version = "0.7", optional = true }
+
+# PostgreSQL support (optional)
+sqlx-postgres = { version = "0.7", optional = true }
 
 # Include directory for PWA embedding
 include_dir = "0.7"
+
+# Authentication
+hmac = "0.12"
+sha2 = "0.10"
+hex = "0.4"
+base64 = "0.21"
+
+# HTTP client for webhooks
+reqwest = { version = "0.11", features = ["json"] }
+
+# Random number generation
+rand = "0.8"
+
+# URL parsing
+url = "2.5"
+
+[features]
+default = ["sqlite"]
+sqlite = ["sqlx/sqlite", "sqlx-sqlite"]
+postgres = ["sqlx/postgres", "sqlx-postgres"]
+
+[dev-dependencies]
+axum-test = "15.0"
 
 # Authentication
 hmac = "0.12"
