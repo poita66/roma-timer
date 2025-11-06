@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-roma_timer}
+      POSTGRES_USER: ${POSTGRES_USER:-roma_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-timer_password_change_me}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Optional: Mount custom initialization scripts
+      # - ./postgres-init:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-roma_user} -d ${POSTGRES_DB:-roma_timer}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  roma-timer:
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    ports:
+      - "3000:3000"
+    environment:
+      - ROMA_TIMER_HOST=0.0.0.0
+      - ROMA_TIMER_PORT=3000
+      - ROMA_TIMER_SECRET=${ROMA_TIMER_SECRET:-change-me-in-production}
+      # PostgreSQL configuration
+      - DATABASE_URL=postgres://${POSTGRES_USER:-roma_user}:${POSTGRES_PASSWORD:-timer_password_change_me}@postgres:5432/${POSTGRES_DB:-roma_timer}
+      # Alternative: Use POSTGRES_URL environment variable
+      # - POSTGRES_URL=postgres://${POSTGRES_USER:-roma_user}:${POSTGRES_PASSWORD:-timer_password_change_me}@postgres:5432/${POSTGRES_DB:-roma_timer}
+      # Authentication environment variables
+      - ROMA_TIMER_SHARED_SECRET=${ROMA_TIMER_SHARED_SECRET:-jwt-secret-change-me-in-production}
+      - ROMA_TIMER_PEPPER=${ROMA_TIMER_PEPPER:-pepper-change-me-in-production}
+      # Optional: Log level
+      - ROMA_TIMER_LOG_LEVEL=${ROMA_TIMER_LOG_LEVEL:-info}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  postgres_data:
+    driver: local

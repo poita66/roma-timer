@@ -11,13 +11,14 @@ services:
       - ROMA_TIMER_HOST=0.0.0.0
       - ROMA_TIMER_PORT=3000
       - ROMA_TIMER_SECRET=${ROMA_TIMER_SECRET:-change-me-in-production}
-      # Data persistence directory - uses Docker volume
+      # SQLite configuration
+      - DATABASE_URL=sqlite:/app/data/roma-timer.db
       - ROMA_TIMER_DATA_DIR=/app/data
       # Authentication environment variables
       - ROMA_TIMER_SHARED_SECRET=${ROMA_TIMER_SHARED_SECRET:-jwt-secret-change-me-in-production}
       - ROMA_TIMER_PEPPER=${ROMA_TIMER_PEPPER:-pepper-change-me-in-production}
-      # Fallback to DATABASE_URL for backward compatibility (overrides ROMA_TIMER_DATA_DIR if set)
-      - DATABASE_URL=${DATABASE_URL:-}
+      # Optional: Log level
+      - ROMA_TIMER_LOG_LEVEL=${ROMA_TIMER_LOG_LEVEL:-info}
     volumes:
       - roma-timer-data:/app/data
     restart: unless-stopped

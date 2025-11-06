@@ -9,13 +9,15 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
-jobs:
   build-and-push:
-    name: Build and Push Docker Image
+    name: Build and Push Docker Images
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    strategy:
+      matrix:
+        variant: [sqlite, postgres]
 
     steps:
     - name: Checkout repository
@@ -35,7 +37,7 @@ jobs:
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.variant }}
         tags: |
           type=ref,event=branch
           type=raw,value=latest,enable={{is_default_branch}}
@@ -45,6 +47,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
+        file: ./Dockerfile.${{ matrix.variant }}
         platforms: linux/amd64,linux/arm64
         push: true
         tags: ${{ steps.meta.outputs.tags }}
@@ -56,12 +59,12 @@ jobs:
     - name: Generate SBOM
       uses: anchore/sbom-action@v0
       with:
-        image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+        image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.variant }}:${{ steps.meta.outputs.version }}
         format: spdx-json
-        output-file: sbom.spdx.json
+        output-file: sbom-${{ matrix.variant }}.spdx.json
 
     - name: Upload SBOM
       uses: actions/upload-artifact@v4
       with:
-        name: sbom-${{ steps.meta.outputs.version }}
-        path: sbom.spdx.json
+        name: sbom-${{ matrix.variant }}-${{ steps.meta.outputs.version }}
+        path: sbom-${{ matrix.variant }}.spdx.json
