@@ -15,7 +15,7 @@ Each database variant has its own Dockerfile and docker-compose configuration.
 ### 1. SQLite Variant
 
 **Files:**
-- [`Dockerfile.sqlite`](Dockerfile.sqlite)
+- [`Dockerfile`](Dockerfile) (built with SQLite support by default)
 - [`docker-compose.sqlite.yml`](docker-compose.sqlite.yml)
 
 **Use Cases:**
@@ -41,7 +41,7 @@ Each database variant has its own Dockerfile and docker-compose configuration.
 docker-compose -f docker-compose.sqlite.yml up -d
 
 # Or build and run manually
-docker build -f Dockerfile.sqlite -t roma-timer-sqlite .
+docker build -f Dockerfile -t roma-timer-sqlite .
 docker run -d -p 3000:3000 -v roma-timer-data:/app/data roma-timer-sqlite
 ```
 
