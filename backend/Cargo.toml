@@ -42,7 +42,7 @@ tracing = "0.1"
 tracing-subscriber = "0.3"
 
 # Database support with conditional features
-sqlx = { version = "0.7", default-features = false, features = ["runtime-tokio-rustls", "chrono", "uuid", "macros", "any"] }
+sqlx = { version = "0.7", default-features = false, features = ["runtime-tokio-rustls", "chrono", "uuid", "macros"] }
 
 # SQLite support (default)
 sqlx-sqlite = { version = "0.7", optional = true }

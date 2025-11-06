@@ -3,7 +3,7 @@
 //! Provides database-agnostic connection management for SQLite and PostgreSQL.
 
 use anyhow::Result;
-use sqlx::{query, AnyPool};
+use sqlx::{query, SqlitePool};
 use tracing::{debug, info};
 
 use super::types::DatabaseType;
@@ -33,8 +33,14 @@ pub struct UserRow {
 
 /// Database connection manager
 #[derive(Debug, Clone)]
+pub enum DatabasePool {
+    Sqlite(SqlitePool),
+}
+
+/// Database connection manager
+#[derive(Debug, Clone)]
 pub struct DatabaseManager {
-    pub pool: AnyPool,
+    pub pool: DatabasePool,
     pub database_type: DatabaseType,
 }
 
@@ -45,8 +51,16 @@ impl DatabaseManager {
 
         info!("Connecting to database: {} ({})", database_type, database_url);
 
-        let pool = AnyPool::connect(database_url).await
-            .map_err(|e| anyhow::anyhow!("Failed to connect to database: {}", e))?;
+        let pool = match database_type {
+            DatabaseType::Sqlite => {
+                let pool = SqlitePool::connect(database_url).await
+                    .map_err(|e| anyhow::anyhow!("Failed to connect to SQLite database: {}", e))?;
+                DatabasePool::Sqlite(pool)
+            }
+            DatabaseType::Postgres => {
+                return Err(anyhow::anyhow!("PostgreSQL support is not enabled in this build"));
+            }
+        };
 
         debug!("Successfully connected to {} database", database_type);
 
@@ -90,7 +104,7 @@ impl DatabaseManager {
                 self.create_sqlite_tables().await?;
             }
             DatabaseType::Postgres => {
-                self.create_postgres_tables().await?;
+                return Err(anyhow::anyhow!("PostgreSQL support is not enabled in this build"));
             }
         }
         Ok(())
@@ -114,7 +128,9 @@ impl DatabaseManager {
             )
             "#,
         )
-        .execute(&self.pool)
+        .execute(match &self.pool {
+            DatabasePool::Sqlite(pool) => pool,
+        })
         .await?;
 
         // Users table
@@ -130,7 +146,9 @@ impl DatabaseManager {
             )
             "#,
         )
-        .execute(&self.pool)
+        .execute(match &self.pool {
+            DatabasePool::Sqlite(pool) => pool,
+        })
         .await?;
 
         // User configurations table
@@ -151,7 +169,9 @@ impl DatabaseManager {
             )
             "#,
         )
-        .execute(&self.pool)
+        .execute(match &self.pool {
+            DatabasePool::Sqlite(pool) => pool,
+        })
         .await?;
 
         // Timer sessions table
@@ -170,7 +190,9 @@ impl DatabaseManager {
             )
             "#,
         )
-        .execute(&self.pool)
+        .execute(match &self.pool {
+            DatabasePool::Sqlite(pool) => pool,
+        })
         .await?;
 
         // Notification events table
@@ -187,7 +209,9 @@ impl DatabaseManager {
             )
             "#,
         )
-        .execute(&self.pool)
+        .execute(match &self.pool {
+            DatabasePool::Sqlite(pool) => pool,
+        })
         .await?;
 
         debug!("SQLite tables created successfully");
@@ -212,7 +236,9 @@ impl DatabaseManager {
             )
             "#,
         )
-        .execute(&self.pool)
+        .execute(match &self.pool {
+            DatabasePool::Sqlite(pool) => pool,
+        })
         .await?;
 
         // Users table
@@ -228,7 +254,9 @@ impl DatabaseManager {
             )
             "#,
         )
-        .execute(&self.pool)
+        .execute(match &self.pool {
+            DatabasePool::Sqlite(pool) => pool,
+        })
         .await?;
 
         // User configurations table
@@ -249,7 +277,9 @@ impl DatabaseManager {
             )
             "#,
         )
-        .execute(&self.pool)
+        .execute(match &self.pool {
+            DatabasePool::Sqlite(pool) => pool,
+        })
         .await?;
 
         // Timer sessions table
@@ -268,7 +298,9 @@ impl DatabaseManager {
             )
             "#,
         )
-        .execute(&self.pool)
+        .execute(match &self.pool {
+            DatabasePool::Sqlite(pool) => pool,
+        })
         .await?;
 
         // Notification events table
@@ -285,7 +317,9 @@ impl DatabaseManager {
             )
             "#,
         )
-        .execute(&self.pool)
+        .execute(match &self.pool {
+            DatabasePool::Sqlite(pool) => pool,
+        })
         .await?;
 
         debug!("PostgreSQL tables created successfully");
@@ -294,15 +328,21 @@ impl DatabaseManager {
 
     /// Get connection pool statistics
     pub async fn pool_size(&self) -> u32 {
-        self.pool.size()
+        match &self.pool {
+            DatabasePool::Sqlite(pool) => pool.size(),
+        }
     }
 
     /// Test database connection
     pub async fn test_connection(&self) -> Result<()> {
-        query("SELECT 1")
-            .fetch_one(&self.pool)
-            .await
-            .map_err(|e| anyhow::anyhow!("Database connection test failed: {}", e))?;
+        match &self.pool {
+            DatabasePool::Sqlite(pool) => {
+                query("SELECT 1")
+                    .fetch_one(pool)
+                    .await
+                    .map_err(|e| anyhow::anyhow!("Database connection test failed: {}", e))?;
+            }
+        }
 
         debug!("Database connection test successful");
         Ok(())
@@ -324,7 +364,9 @@ impl DatabaseManager {
         .bind(state.short_break_duration as i64)
         .bind(state.long_break_duration as i64)
         .bind(state.last_updated as i64)
-        .execute(&self.pool)
+        .execute(match &self.pool {
+            DatabasePool::Sqlite(pool) => pool,
+        })
         .await
         .map_err(|e| anyhow::anyhow!("Failed to save timer state: {}", e))?;
 
@@ -340,7 +382,9 @@ impl DatabaseManager {
             WHERE id = 'default'
             "#
         )
-        .fetch_optional(&self.pool)
+        .fetch_optional(match &self.pool {
+            DatabasePool::Sqlite(pool) => pool,
+        })
         .await
         .map_err(|e| anyhow::anyhow!("Failed to get timer state: {}", e))?;
 
@@ -372,7 +416,9 @@ impl DatabaseManager {
         .bind(salt)
         .bind(chrono::Utc::now().timestamp())
         .bind(chrono::Utc::now().timestamp())
-        .execute(&self.pool)
+        .execute(match &self.pool {
+            DatabasePool::Sqlite(pool) => pool,
+        })
         .await
         .map_err(|e| anyhow::anyhow!("Failed to create user: {}", e))?;
         
@@ -389,7 +435,9 @@ impl DatabaseManager {
             "#
         )
         .bind(username)
-        .fetch_optional(&self.pool)
+        .fetch_optional(match &self.pool {
+            DatabasePool::Sqlite(pool) => pool,
+        })
         .await
         .map_err(|e| anyhow::anyhow!("Failed to get user by username: {}", e))?;
 

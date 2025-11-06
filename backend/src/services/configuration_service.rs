@@ -4,11 +4,11 @@
 
 use crate::models::user_configuration::{UserConfiguration, UserConfigurationError};
 use crate::services::websocket_service::{WebSocketService, WebSocketMessage};
-use crate::database::DatabaseManager;
+use crate::database::{DatabaseManager, connection::DatabasePool};
 use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 // Database row structure for user configurations
 #[derive(Debug, sqlx::FromRow)]
@@ -122,7 +122,9 @@ impl ConfigurationService {
             "#
         );
 
-        match query.fetch_one(&self.database_manager.pool).await {
+        match query.fetch_one(match &self.database_manager.pool {
+            DatabasePool::Sqlite(pool) => pool,
+        }).await {
             Ok(row) => {
                 let config = UserConfiguration {
                     id: row.id.expect("Database row missing id"),
@@ -305,7 +307,9 @@ impl ConfigurationService {
             }
         };
 
-        query.execute(&self.database_manager.pool).await
+        query.execute(match &self.database_manager.pool {
+            DatabasePool::Sqlite(pool) => pool,
+        }).await
             .map_err(|e| anyhow::anyhow!("Failed to save configuration: {}", e))?;
 
         debug!("Configuration saved successfully to database");
