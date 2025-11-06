@@ -53,6 +53,18 @@ impl DatabaseManager {
 
         let pool = match database_type {
             DatabaseType::Sqlite => {
+                // For SQLite, ensure the directory exists before connecting
+                if database_url.starts_with("sqlite:") {
+                    let db_path = database_url.strip_prefix("sqlite:")
+                        .unwrap_or(database_url);
+                    let path = std::path::Path::new(db_path);
+
+                    if let Some(parent) = path.parent() {
+                        std::fs::create_dir_all(parent)
+                            .map_err(|e| anyhow::anyhow!("Failed to create database directory '{}': {}", parent.display(), e))?;
+                    }
+                }
+
                 let pool = SqlitePool::connect(database_url).await
                     .map_err(|e| anyhow::anyhow!("Failed to connect to SQLite database: {}", e))?;
                 DatabasePool::Sqlite(pool)

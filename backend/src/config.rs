@@ -121,6 +121,19 @@ impl Config {
         // Data directory
         if let Ok(data_dir) = env::var("ROMA_TIMER_DATA_DIR") {
             config.data_dir = PathBuf::from(data_dir);
+
+            // Update database URL to use the full path for SQLite
+            if config.database_url.starts_with("sqlite:") && !config.database_url.starts_with("sqlite:/") {
+                let db_path = config.database_url.strip_prefix("sqlite:")
+                    .unwrap_or(&config.database_url);
+                let path = PathBuf::from(db_path);
+
+                if path.is_relative() {
+                    let mut full_path = config.data_dir.clone();
+                    full_path.push(path);
+                    config.database_url = format!("sqlite:{}", full_path.display());
+                }
+            }
         }
 
         // Authentication

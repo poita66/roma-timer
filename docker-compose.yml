@@ -5,21 +5,23 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      cache_from:
+        - ghcr.io/poita66/roma-timer-sqlite:latest
     ports:
-      - "3000:3000"
+      - "3003:3000"
     environment:
-      - ROMA_TIMER_HOST=0.0.0.0
-      - ROMA_TIMER_PORT=3000
-      - ROMA_TIMER_SECRET=${ROMA_TIMER_SECRET:-change-me-in-production}
+      - ROMA_TIMER_HOST=${ROMA_TIMER_HOST:-0.0.0.0}
+      - ROMA_TIMER_PORT=${ROMA_TIMER_PORT:-3000}
+      - ROMA_TIMER_SECRET=${ROMA_TIMER_SECRET}
       # Data persistence directory - uses Docker volume
-      - ROMA_TIMER_DATA_DIR=/app/data
+      - ROMA_TIMER_DATA_DIR=${ROMA_TIMER_DATA_DIR:-/app/data}
       # Authentication environment variables
-      - ROMA_TIMER_SHARED_SECRET=${ROMA_TIMER_SHARED_SECRET:-jwt-secret-change-me-in-production}
-      - ROMA_TIMER_PEPPER=${ROMA_TIMER_PEPPER:-pepper-change-me-in-production}
+      - ROMA_TIMER_SHARED_SECRET=${ROMA_TIMER_SHARED_SECRET}
+      - ROMA_TIMER_PEPPER=${ROMA_TIMER_PEPPER}
       # Fallback to DATABASE_URL for backward compatibility (overrides ROMA_TIMER_DATA_DIR if set)
-      - DATABASE_URL=${DATABASE_URL:-}
+      - DATABASE_URL=${DATABASE_URL}
     volumes:
-      - roma-timer-data:/app/data
+      - ./data:/app/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
@@ -28,6 +30,3 @@ services:
       retries: 3
       start_period: 40s
 
-volumes:
-  roma-timer-data:
-    driver: local

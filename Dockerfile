@@ -55,15 +55,33 @@ RUN mkdir -p /app/frontend && cp -r /app/public/* /app/frontend/ && \
 COPY backend/migrations ./migrations/
 
 # Create data directory with correct ownership
-RUN mkdir -p /app/data && chown -R roma-timer:roma-timer /app
+RUN mkdir -p /app/data && chown -R roma-timer:roma-timer /app && \
+    chmod 755 /app/data
 
-USER roma-timer
+# Create entrypoint script to handle permissions
+RUN echo '#!/bin/sh\n\
+# Ensure data directory has correct permissions\n\
+if [ -d "/app/data" ]; then\n\
+    chown -R roma-timer:roma-timer /app/data\n\
+    chmod 755 /app/data\n\
+fi\n\
+# Create the database file if it doesn'\''t exist\n\
+if [ ! -f "/app/data/roma-timer.db" ]; then\n\
+    su-exec roma-timer touch /app/data/roma-timer.db\n\
+fi\n\
+# Switch to roma-timer user and start the application\n\
+exec gosu roma-timer "$@"' > /docker-entrypoint.sh && \
+    chmod +x /docker-entrypoint.sh
+
+# Install gosu for user switching
+RUN apt-get update && apt-get install -y gosu && rm -rf /var/lib/apt/lists/*
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
 
 # Expose port
 EXPOSE 3000
 
 # Environment variables for SQLite
-ENV DATABASE_URL="sqlite:/app/data/roma-timer.db"
 ENV ROMA_TIMER_HOST="0.0.0.0"
 ENV ROMA_TIMER_PORT="3000"
 
