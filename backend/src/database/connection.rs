@@ -3,11 +3,8 @@
 //! Provides database-agnostic connection management for SQLite and PostgreSQL.
 
 use anyhow::Result;
-use sqlx::{query, AnyPool, query_as};
-use sqlx::any::AnyQueryResult;
+use sqlx::{query, AnyPool};
 use tracing::{debug, info};
-use chrono::Utc;
-use uuid::Uuid;
 
 use super::types::DatabaseType;
 

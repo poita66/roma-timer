@@ -7,4 +7,3 @@ pub mod types;
 
 pub use connection::{DatabaseManager};
 pub use types::DatabaseType;
-pub use types::*;

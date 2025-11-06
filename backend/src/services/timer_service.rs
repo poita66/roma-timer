@@ -4,12 +4,10 @@
 //! session transitions, and real-time state management.
 
 use crate::models::timer_session::{TimerSession, TimerType, TimerSessionError};
-use crate::models::user_configuration::UserConfiguration;
 use crate::services::configuration_service::ConfigurationService;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::{Mutex, RwLock};
-use uuid::Uuid;
 
 /// Timer service for managing pomodoro sessions
 #[derive(Debug, Clone)]

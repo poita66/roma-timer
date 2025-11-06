@@ -3,7 +3,6 @@
 //! Represents the current timer state and configuration for pomodoro sessions.
 //! Includes validation rules and business logic for timer operations.
 
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;

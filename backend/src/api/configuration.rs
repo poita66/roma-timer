@@ -2,18 +2,17 @@
 //!
 //! REST API endpoints for managing user configuration settings.
 
-use crate::models::user_configuration::{UserConfiguration, UserConfigurationError};
+use crate::models::user_configuration::UserConfiguration;
 use crate::services::configuration_service::{ConfigurationService, ConfigurationServiceError, ConfigurationUpdate};
 use axum::{
-    extract::{Path, State},
+    extract::State,
     http::StatusCode,
     response::Json,
-    routing::{get, put},
+    routing::get,
     Router,
 };
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::sync::Arc;
-use tower::ServiceExt;
 use tracing::{debug, error, info, warn};
 
 /// API error response structure
@@ -301,7 +300,8 @@ mod tests {
         let response = app.oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK);
 
-        // Then reset
+        // Then reset - create a new app instance since oneshot consumes the app
+        let app = create_test_app().await;
         let request = Request::builder()
             .method("POST")
             .uri("/api/configuration/reset")

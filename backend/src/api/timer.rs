@@ -12,9 +12,8 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use serde_json::{json, Value};
+use serde_json::json;
 use std::sync::Arc;
-use uuid::Uuid;
 
 /// Create timer API routes
 pub fn create_timer_routes() -> Router<Arc<TimerService>> {

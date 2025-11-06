@@ -3,7 +3,6 @@
 //! Represents user preferences and settings for the pomodoro timer.
 //! Includes validation rules and default values.
 
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use std::time::{SystemTime, UNIX_EPOCH};

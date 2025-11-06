@@ -3,10 +3,8 @@
 //! Represents an active WebSocket connection for cross-device synchronization.
 //! Tracks device metadata, connection lifecycle, and heartbeat status.
 
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
-use tokio::sync::mpsc::UnboundedSender;
 use uuid::Uuid;
 
 /// Device connection for tracking active WebSocket connections

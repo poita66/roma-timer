@@ -2,7 +2,6 @@
 //!
 //! Represents timer completion notifications for delivery tracking.
 
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use std::time::{SystemTime, UNIX_EPOCH};
