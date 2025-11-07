@@ -126,7 +126,7 @@ impl ScheduledTask {
         timezone: String,
     ) -> Self {
         let now = Utc::now().timestamp();
-        let id = format!("task_{}_{}", task_type.display_name().to_lowercase().replace(' ', '_'), Uuid::new_v4());
+        let id = format!("task_{}_{}", task_type.display_name().to_lowercase().replace(' ', "_"), Uuid::new_v4());
 
         Self {
             id,

@@ -167,7 +167,7 @@ impl SchedulingService {
                 if let Some(handler) = handlers_guard.get(&task_type) {
                     // Create a task with the current metadata for execution
                     let task_for_execution = ScheduledTask {
-                        id: job_id,
+                        id: job_id.clone(),
                         task_type: task_type.clone(),
                         user_configuration_id: None,
                         cron_expression: "0 */2 * * * *".to_string(), // This would come from the job
@@ -184,7 +184,7 @@ impl SchedulingService {
 
                     match handler.execute(&task_for_execution, &context).await {
                         Ok(()) => {
-                            info!("Task {} executed successfully", job_id);
+                            info!("Task {} executed successfully", job_id.clone());
                         }
                         Err(e) => {
                             error!("Task {} execution failed: {}", job_id, e);

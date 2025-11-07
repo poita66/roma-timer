@@ -119,6 +119,10 @@ pub enum SessionResetTriggerSource {
     #[serde(rename = "configuration_update")]
     #[sqlx(rename = "configuration_update")]
     ConfigurationUpdate,
+
+    #[serde(rename = "system")]
+    #[sqlx(rename = "system")]
+    System,
 }
 
 impl SessionResetTriggerSource {
@@ -131,6 +135,7 @@ impl SessionResetTriggerSource {
             SessionResetTriggerSource::WebSocketMessage => "WebSocket Message",
             SessionResetTriggerSource::Migration => "Migration",
             SessionResetTriggerSource::ConfigurationUpdate => "Configuration Update",
+            SessionResetTriggerSource::System => "System",
         }
     }
 }

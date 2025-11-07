@@ -304,7 +304,7 @@ impl UserConfiguration {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
-            .as_secs();
+            .as_secs() as i64;
 
         Self {
             id: "default-config".to_string(),
@@ -480,7 +480,7 @@ impl UserConfiguration {
         self.updated_at = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
-            .as_secs();
+            .as_secs() as i64;
     }
 
     /// Check if notifications are enabled and configured
@@ -565,7 +565,7 @@ impl UserConfiguration {
                     SystemTime::now()
                         .duration_since(UNIX_EPOCH)
                         .unwrap()
-                        .as_secs(),
+                        .as_secs() as i64,
                 );
             }
             self.touch();
@@ -595,7 +595,7 @@ impl UserConfiguration {
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
-                .as_secs(),
+                .as_secs() as i64,
         );
         self.touch();
     }
@@ -658,7 +658,7 @@ impl UserConfiguration {
         match self.last_daily_reset_utc {
             Some(last_reset) => {
                 // Check if at least 24 hours have passed since last reset
-                current_time >= last_reset + 86400
+                current_time >= (last_reset + 86400) as u64
             }
             None => true, // Never reset before, so reset is due
         }
@@ -670,7 +670,7 @@ impl UserConfiguration {
             return None;
         }
 
-        self.last_daily_reset_utc.map(|last_reset| last_reset + 86400)
+        self.last_daily_reset_utc.map(|last_reset| (last_reset + 86400) as u64)
     }
 }
 

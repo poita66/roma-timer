@@ -161,11 +161,11 @@ impl ConfigurationService {
                     daily_reset_time_hour: row.daily_reset_time_hour.map(|x| x as u8),
                     daily_reset_time_custom: row.daily_reset_time_custom,
                     daily_reset_enabled: row.daily_reset_enabled,
-                    last_daily_reset_utc: row.last_daily_reset_utc.map(|x| x as u64),
+                    last_daily_reset_utc: row.last_daily_reset_utc,
                     today_session_count: row.today_session_count as u32,
                     manual_session_override: row.manual_session_override.map(|x| x as u32),
-                    created_at: row.created_at as u64,
-                    updated_at: row.updated_at as u64,
+                    created_at: row.created_at,
+                    updated_at: row.updated_at,
                 };
 
                 debug!("Configuration loaded from database");
