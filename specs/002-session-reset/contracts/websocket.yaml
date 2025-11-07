@@ -1,0 +1,482 @@
+# WebSocket Message Contracts - Daily Session Reset
+# Real-time synchronization messages for session reset functionality
+
+# Base Message Structure
+base_message:
+  type: object
+  properties:
+    type:
+      type: string
+      description: Message type identifier
+      example: "session_count_update"
+    timestamp:
+      type: string
+      format: date-time
+      description: Message timestamp (UTC)
+      example: "2025-01-07T10:30:00Z"
+    user_id:
+      type: string
+      description: User identifier
+      example: "user_123"
+    device_id:
+      type: string
+      description: Device identifier that sent the message
+      example: "web_client_abc"
+    message_id:
+      type: string
+      format: uuid
+      description: Unique message identifier
+      example: "550e8400-e29b-41d4-a716-446655440000"
+  required:
+    - type
+    - timestamp
+    - user_id
+    - message_id
+
+# Message Types and Schemas
+message_types:
+  # Session Count Updates
+  session_count_update:
+    description: Real-time session count changes
+    allOf:
+      - $ref: "#/base_message"
+      - type: object
+        properties:
+          data:
+            type: object
+            properties:
+              current_count:
+                type: integer
+                minimum: 0
+                maximum: 1000
+                example: 5
+              previous_count:
+                type: integer
+                minimum: 0
+                maximum: 1000
+                example: 4
+              change_type:
+                type: string
+                enum: [increment, manual_set, reset]
+                example: "increment"
+              manual_override:
+                type: boolean
+                example: false
+              today_date:
+                type: string
+                format: date
+                example: "2025-01-07"
+            required:
+              - current_count
+              - change_type
+
+  session_reset_occurred:
+    description: Session count was reset (automatic or manual)
+    allOf:
+      - $ref: "#/base_message"
+      - type: object
+        properties:
+          data:
+            type: object
+            properties:
+              reset_type:
+                type: string
+                enum: [scheduled_daily, manual_reset, timezone_change, configuration_change]
+                example: "scheduled_daily"
+              previous_count:
+                type: integer
+                example: 8
+              new_count:
+                type: integer
+                example: 0
+              reset_timestamp:
+                type: string
+                format: date-time
+                example: "2025-01-07T07:00:00Z"
+              local_reset_time:
+                type: string
+                description: Reset time in user's local timezone
+                example: "2025-01-07 02:00"
+              timezone:
+                type: string
+                description: User's timezone at reset time
+                example: "America/New_York"
+            required:
+              - reset_type
+              - previous_count
+              - new_count
+              - reset_timestamp
+
+  # Configuration Updates
+  daily_reset_config_changed:
+    description: Daily reset configuration was updated
+    allOf:
+      - $ref: "#/base_message"
+      - type: object
+        properties:
+          data:
+            type: object
+            properties:
+              old_config:
+                $ref: "#/schemas/daily_reset_config"
+              new_config:
+                $ref: "#/schemas/daily_reset_config"
+              changed_by:
+                type: string
+                description: Device or user that made the change
+                example: "web_client_abc"
+              change_reason:
+                type: string
+                enum: [user_request, timezone_change, system_update]
+                example: "user_request"
+            required:
+              - new_config
+
+  timezone_changed:
+    description: User timezone was updated
+    allOf:
+      - $ref: "#/base_message"
+      - type: object
+        properties:
+          data:
+            type: object
+            properties:
+              old_timezone:
+                type: string
+                example: "UTC"
+              new_timezone:
+                type: string
+                example: "America/New_York"
+              reset_rescheduled:
+                type: boolean
+                example: true
+              new_next_reset_utc:
+                type: string
+                format: date-time
+                example: "2025-01-08T12:00:00Z"
+              new_next_reset_local:
+                type: string
+                example: "2025-01-08 07:00"
+              changed_by:
+                type: string
+                example: "mobile_client_xyz"
+            required:
+              - old_timezone
+              - new_timezone
+              - reset_rescheduled
+
+  # Status Updates
+  next_reset_time_updated:
+    description: Next scheduled reset time changed
+    allOf:
+      - $ref: "#/base_message"
+      - type: object
+        properties:
+          data:
+            type: object
+            properties:
+              next_reset_utc:
+                type: string
+                format: date-time
+                example: "2025-01-08T07:00:00Z"
+              next_reset_local:
+                type: string
+                example: "2025-01-08 02:00"
+              timezone:
+                type: string
+                example: "America/New_York"
+              time_until_reset:
+                type: string
+                description: Human-readable time until next reset
+                example: "16 hours 30 minutes"
+            required:
+              - next_reset_utc
+              - next_reset_local
+
+  # Error Messages
+  configuration_error:
+    description: Error occurred during configuration update
+    allOf:
+      - $ref: "#/base_message"
+      - type: object
+        properties:
+          data:
+            type: object
+            properties:
+              error_type:
+                type: string
+                enum: [validation_error, timezone_not_found, scheduling_failed, permission_denied]
+                example: "validation_error"
+              error_message:
+                type: string
+                example: "Invalid timezone: Invalid/Timezone"
+              attempted_change:
+                type: object
+                additionalProperties: true
+                example:
+                  timezone: "Invalid/Timezone"
+              current_config:
+                type: object
+                additionalProperties: true
+                example:
+                  timezone: "UTC"
+            required:
+              - error_type
+              - error_message
+
+# Shared Schemas
+schemas:
+  daily_reset_config:
+    type: object
+    properties:
+      enabled:
+        type: boolean
+        example: true
+      reset_time:
+        oneOf:
+          - type: object
+            properties:
+              type:
+                type: string
+                enum: [midnight]
+            required:
+              - type
+          - type: object
+            properties:
+              type:
+                type: string
+                enum: [hour]
+              hour:
+                type: integer
+                minimum: 0
+                maximum: 23
+                example: 7
+            required:
+              - type
+              - hour
+          - type: object
+            properties:
+              type:
+                type: string
+                enum: [custom]
+              time:
+                type: string
+                pattern: "^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
+                example: "07:30"
+            required:
+              - type
+              - time
+      timezone:
+        type: string
+        example: "America/New_York"
+      next_reset_utc:
+        type: string
+        format: date-time
+        example: "2025-01-08T12:00:00Z"
+      next_reset_local:
+        type: string
+        example: "2025-01-08 07:00"
+    required:
+      - enabled
+      - reset_time
+      - timezone
+
+# Message Examples
+examples:
+  session_increment:
+    type: session_count_update
+    data:
+      current_count: 5
+      previous_count: 4
+      change_type: increment
+      manual_override: false
+      today_date: "2025-01-07"
+    timestamp: "2025-01-07T10:30:00Z"
+    user_id: "user_123"
+    device_id: "web_client_abc"
+    message_id: "msg_789"
+
+  manual_session_set:
+    type: session_count_update
+    data:
+      current_count: 15
+      previous_count: 5
+      change_type: manual_set
+      manual_override: true
+      today_date: "2025-01-07"
+    timestamp: "2025-01-07T10:35:00Z"
+    user_id: "user_123"
+    device_id: "mobile_client_xyz"
+    message_id: "msg_790"
+
+  daily_reset_notification:
+    type: session_reset_occurred
+    data:
+      reset_type: scheduled_daily
+      previous_count: 8
+      new_count: 0
+      reset_timestamp: "2025-01-07T07:00:00Z"
+      local_reset_time: "2025-01-07 02:00"
+      timezone: "America/New_York"
+    timestamp: "2025-01-07T07:00:01Z"
+    user_id: "user_123"
+    device_id: "background_service"
+    message_id: "msg_791"
+
+  timezone_update:
+    type: timezone_changed
+    data:
+      old_timezone: "UTC"
+      new_timezone: "America/New_York"
+      reset_rescheduled: true
+      new_next_reset_utc: "2025-01-08T12:00:00Z"
+      new_next_reset_local: "2025-01-08 07:00"
+      changed_by: "web_client_abc"
+    timestamp: "2025-01-07T10:40:00Z"
+    user_id: "user_123"
+    device_id: "web_client_abc"
+    message_id: "msg_792"
+
+  configuration_change:
+    type: daily_reset_config_changed
+    data:
+      old_config:
+        enabled: true
+        reset_time:
+          type: midnight
+        timezone: "UTC"
+      new_config:
+        enabled: true
+        reset_time:
+          type: hour
+          hour: 7
+        timezone: "America/New_York"
+      changed_by: "web_client_abc"
+      change_reason: user_request
+    timestamp: "2025-01-07T10:45:00Z"
+    user_id: "user_123"
+    device_id: "web_client_abc"
+    message_id: "msg_793"
+
+  reset_time_update:
+    type: next_reset_time_updated
+    data:
+      next_reset_utc: "2025-01-08T12:00:00Z"
+      next_reset_local: "2025-01-08 07:00"
+      timezone: "America/New_York"
+      time_until_reset: "20 hours 30 minutes"
+    timestamp: "2025-01-07T10:30:00Z"
+    user_id: "user_123"
+    device_id: "background_service"
+    message_id: "msg_794"
+
+  validation_error:
+    type: configuration_error
+    data:
+      error_type: validation_error
+      error_message: "Invalid timezone: Invalid/Timezone"
+      attempted_change:
+        timezone: "Invalid/Timezone"
+      current_config:
+        timezone: "UTC"
+    timestamp: "2025-01-07T10:50:00Z"
+    user_id: "user_123"
+    device_id: "web_client_abc"
+    message_id: "msg_795"
+
+# Message Flow Sequences
+message_flows:
+  manual_session_override:
+    description: Flow when user manually sets session count
+    steps:
+      1: client sends API request to PUT /session/count
+      2: server validates and updates session count
+      3: server broadcasts session_count_update message to all user devices
+      4: all devices update their UI with new session count
+
+  timezone_change_flow:
+    description: Flow when user changes timezone
+    steps:
+      1: client sends API request to PUT /configuration/timezone
+      2: server validates timezone and reschedules daily reset
+      3: server broadcasts timezone_changed message to all user devices
+      4: all devices update timezone display and reset time calculations
+      5: server may send next_reset_time_updated message
+
+  daily_reset_flow:
+    description: Flow when scheduled daily reset occurs
+    steps:
+      1: background scheduler detects reset time
+      2: server performs session reset (count -> 0)
+      3: server logs SessionResetEvent
+      4: server broadcasts session_reset_occurred message
+      5: all devices update session count display
+      6: server may send next_reset_time_updated message
+
+  configuration_change_flow:
+    description: Flow when daily reset configuration changes
+    steps:
+      1: client sends API request to PUT /configuration/daily-reset
+      2: server validates and updates configuration
+      3: server reschedules background task if needed
+      4: server broadcasts daily_reset_config_changed message
+      5: all devices update reset configuration UI
+      6: server sends next_reset_time_updated message if reset time changed
+
+# Error Handling
+error_handling:
+  client_responsibilities:
+    - Validate message schema before processing
+    - Handle unknown message types gracefully
+    - Implement exponential backoff for connection failures
+    - Cache last known configuration for offline scenarios
+
+  server_responsibilities:
+    - Validate all message payloads
+    - Include error codes for client-side handling
+    - Maintain message ordering where important
+    - Implement rate limiting for configuration changes
+
+  recovery_scenarios:
+    connection_lost:
+      - Clients should reconnect with exponential backoff
+      - Server should cache recent messages for delivery on reconnection
+      - Clients should request current state on reconnection
+
+    message_not_received:
+      - Implement message acknowledgments for critical updates
+      - Clients can poll current state if they suspect missed messages
+      - Server should maintain version numbers for configuration changes
+
+# Performance Considerations
+performance:
+  message_size:
+    target: "< 1KB per message"
+    optimization: "Use minimal field names and abbreviations where possible"
+
+  frequency:
+    session_updates: "< 1 message per second"
+    configuration_updates: "< 10 messages per minute"
+    background_notifications: "< 1 message per hour"
+
+  batch_optimizations:
+    - Combine multiple small updates into single messages where possible
+    - Use compression for large configuration payloads
+    - Implement message deduplication for redundant updates
+
+# Security Considerations
+security:
+  authentication:
+    - All WebSocket connections require valid JWT token
+    - Messages must include user_id that matches token
+    - Device IDs should be validated against known user devices
+
+  authorization:
+    - Users can only receive messages for their own user_id
+    - Configuration changes require proper permissions
+    - System messages (like background resets) are authenticated internally
+
+  message_integrity:
+    - Include message_id for deduplication
+    - Use timestamp to detect replay attacks
+    - Validate message schema before processing

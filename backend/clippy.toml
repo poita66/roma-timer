@@ -1,0 +1,30 @@
+# Clippy configuration for Roma Timer backend
+# Enforcing zero-warning policy for code quality
+
+cognitive-complexity-threshold = 10
+too-many-arguments-threshold = 7
+type-complexity-threshold = 250
+single-char-lifetime-names-threshold = 4
+trivial-copy-size-limit = 1024
+
+# Deny warnings (zero-warning policy)
+warn-on-all-warnings = true
+
+# Additional lint rules for better code quality
+allow-expect-in-tests = true
+allow-unwrap-in-tests = true
+allow-dbg-in-tests = true
+
+# Enforce documentation
+missing-docs-in-crate-items = true
+
+# Performance and security lints
+allow-mixed-uninlined-format-args = false
+allow-private-intrinsics = false
+
+# Style and readability
+enum-variant-name-threshold = 3
+literal-representation-threshold = 10
+
+# Dependencies and version requirements
+multiple-crate-versions = "allow" # May be necessary for complex dependency trees
