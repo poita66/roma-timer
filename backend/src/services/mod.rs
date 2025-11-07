@@ -6,5 +6,6 @@ pub mod configuration_service;
 pub mod timer_service;
 pub mod websocket_service;
 pub mod time_provider;
+pub mod daily_reset_logging;
 
 // Re-export commonly used services

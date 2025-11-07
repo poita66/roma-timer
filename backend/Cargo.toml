@@ -38,6 +38,9 @@ thiserror = "1.0"
 # Regular expressions for validation
 regex = "1.10"
 
+# Enum display formatting
+strum = { version = "0.25", features = ["derive"] }
+
 # Fix for edition2024 compatibility issues - pin home crate
 home = "=0.5.9"
 

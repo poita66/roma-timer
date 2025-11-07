@@ -97,6 +97,34 @@ pub enum AppError {
 
     #[error("Notification delivery failed: {0}")]
     NotificationDeliveryFailed(String),
+
+    // Daily Session Reset specific errors
+    #[error("Daily reset scheduling error: {0}")]
+    DailyResetScheduling(String),
+
+    #[error("Timezone validation error: {0}")]
+    TimezoneValidation(String),
+
+    #[error("Session reset failed: {0}")]
+    SessionResetFailed(String),
+
+    #[error("Manual session override invalid: {0}")]
+    ManualSessionOverrideInvalid(String),
+
+    #[error("Daily reset configuration invalid: {0}")]
+    DailyResetConfigurationInvalid(String),
+
+    #[error("Background task failed: {0}")]
+    BackgroundTaskFailed(String),
+
+    #[error("Analytics calculation error: {0}")]
+    AnalyticsCalculation(String),
+
+    #[error("WebSocket message validation error: {0}")]
+    WebSocketMessageValidation(#[from] crate::models::websocket_messages::ValidationError),
+
+    #[error("Cron expression invalid: {0}")]
+    InvalidCronExpression(String),
 }
 
 impl AppError {
@@ -130,6 +158,17 @@ impl AppError {
             AppError::TimerNotRunning => StatusCode::CONFLICT,
             AppError::DeviceNotConnected => StatusCode::SERVICE_UNAVAILABLE,
             AppError::NotificationDeliveryFailed(_) => StatusCode::BAD_GATEWAY,
+            // Daily reset errors
+            AppError::DailyResetScheduling(_) | AppError::BackgroundTaskFailed(_) => {
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+            AppError::TimezoneValidation(_)
+            | AppError::SessionResetFailed(_)
+            | AppError::ManualSessionOverrideInvalid(_)
+            | AppError::DailyResetConfigurationInvalid(_)
+            | AppError::AnalyticsCalculation(_)
+            | AppError::InvalidCronExpression(_) => StatusCode::BAD_REQUEST,
+            AppError::WebSocketMessageValidation(_) => StatusCode::BAD_REQUEST,
         }
     }
 
@@ -164,6 +203,16 @@ impl AppError {
             AppError::SessionNotFound => "SessionNotFound",
             AppError::DeviceNotConnected => "DeviceNotConnected",
             AppError::NotificationDeliveryFailed(_) => "NotificationDeliveryFailed",
+            // Daily reset error codes
+            AppError::DailyResetScheduling(_) => "DailyResetSchedulingError",
+            AppError::TimezoneValidation(_) => "TimezoneValidationError",
+            AppError::SessionResetFailed(_) => "SessionResetFailed",
+            AppError::ManualSessionOverrideInvalid(_) => "ManualSessionOverrideInvalid",
+            AppError::DailyResetConfigurationInvalid(_) => "DailyResetConfigurationInvalid",
+            AppError::BackgroundTaskFailed(_) => "BackgroundTaskFailed",
+            AppError::AnalyticsCalculation(_) => "AnalyticsCalculationError",
+            AppError::WebSocketMessageValidation(_) => "WebSocketMessageValidationError",
+            AppError::InvalidCronExpression(_) => "InvalidCronExpression",
         }
     }
 
