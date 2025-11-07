@@ -121,12 +121,14 @@ impl DailyResetLogger {
             context: None,
         }
     }
+}
 
+impl DailyResetLoggingContext {
     /// Create context with device ID
     pub fn with_device_id(
         mut self,
         device_id: String,
-    ) -> DailyResetLoggingContext {
+    ) -> Self {
         self.device_id = Some(device_id);
         self
     }
@@ -135,7 +137,7 @@ impl DailyResetLogger {
     pub fn with_request_id(
         mut self,
         request_id: String,
-    ) -> DailyResetLoggingContext {
+    ) -> Self {
         self.request_id = Some(request_id);
         self
     }
@@ -144,11 +146,13 @@ impl DailyResetLogger {
     pub fn with_context(
         mut self,
         context: Value,
-    ) -> DailyResetLoggingContext {
+    ) -> Self {
         self.context = Some(context);
         self
     }
+}
 
+impl DailyResetLogger {
     /// Log session reset event
     pub fn log_session_reset_event(
         &self,

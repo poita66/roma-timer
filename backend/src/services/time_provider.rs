@@ -39,8 +39,8 @@ pub trait TimeProvider: Send + Sync {
         date_str: &str,
         format: &str,
         timezone: Tz,
-    ) -> Result<DateTime<Tz>, chrono::ParseError> {
-        timezone.datetime_from_str(date_str, format)
+    ) -> Result<DateTime<Tz>, anyhow::Error> {
+        Ok(timezone.datetime_from_str(date_str, format)?)
     }
 
     /// Create a DateTime in the specified timezone
@@ -53,9 +53,9 @@ pub trait TimeProvider: Send + Sync {
         min: u32,
         sec: u32,
         timezone: Tz,
-    ) -> Result<DateTime<Tz>, chrono::ParseError> {
+    ) -> Result<DateTime<Tz>, anyhow::Error> {
         timezone.with_ymd_and_hms(year, month, day, hour, min, sec).single()
-            .ok_or_else(|| chrono::ParseError::OutOfRange)
+            .ok_or_else(|| anyhow::anyhow!("Invalid date/time components"))
     }
 }
 
@@ -110,9 +110,9 @@ impl MockTimeProvider {
         hour: u32,
         min: u32,
         sec: u32,
-    ) -> Result<Self, chrono::ParseError> {
+    ) -> Result<Self, anyhow::Error> {
         let start_time = Utc.with_ymd_and_hms(year, month, day, hour, min, sec).single()
-            .ok_or_else(|| chrono::ParseError::OutOfRange)?;
+            .ok_or_else(|| anyhow::anyhow!("Invalid date/time components"))?;
         Ok(Self::new(start_time))
     }
 
