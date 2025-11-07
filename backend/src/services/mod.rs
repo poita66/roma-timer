@@ -7,7 +7,7 @@ pub mod timer_service;
 pub mod websocket_service;
 pub mod time_provider;
 pub mod daily_reset_logging;
-// pub mod daily_reset_service; // Temporarily disabled - needs model integration
+pub mod daily_reset_service;
 pub mod timezone_service;
 pub mod scheduling_service;
 
