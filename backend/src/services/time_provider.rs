@@ -40,7 +40,7 @@ pub trait TimeProvider: Send + Sync {
         format: &str,
         timezone: Tz,
     ) -> Result<DateTime<Tz>, anyhow::Error> {
-        Ok(timezone.datetime_from_str(date_str, format)?)
+        Ok(timezone.from_local_datetime(&chrono::NaiveDateTime::parse_from_str(date_str, format)?).single().ok_or_else(|| anyhow::anyhow!("Invalid local time"))?)
     }
 
     /// Create a DateTime in the specified timezone
@@ -175,7 +175,7 @@ impl TimeProvider for MockTimeProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono_tz::US::America::New_York;
+    use chrono_tz::America::New_York;
 
     #[test]
     fn test_system_time_provider() {

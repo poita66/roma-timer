@@ -14,6 +14,9 @@ mod api;
 mod error;
 mod websocket;
 
+#[cfg(test)]
+mod service_integration_test;
+
 use config::Config;
 use database::DatabaseManager;
 

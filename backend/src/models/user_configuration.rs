@@ -623,7 +623,7 @@ impl UserConfiguration {
     /// Validate session count bounds
     fn validate_session_count(&self, count: u32) -> Result<(), UserConfigurationError> {
         if count > 1000 {
-            return Err(UserConfigurationError::InvalidSessionCount(count));
+            return Err(UserConfigurationError::InvalidSessionCount(count.to_string()));
         }
         Ok(())
     }
@@ -710,8 +710,11 @@ pub enum UserConfigurationError {
     #[error("Invalid reset time '{0}' (must be HH:MM format)")]
     InvalidResetTime(String),
 
-    #[error("Invalid session count {0} (must be 0-1000)")]
-    InvalidSessionCount(u32),
+    #[error("Invalid session count: {0}")]
+    InvalidSessionCount(String),
+
+    #[error("Manual session override is active - automated counting is blocked")]
+    ManualOverrideActive,
 
     #[error("Configuration not found")]
     NotFound,

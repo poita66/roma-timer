@@ -9,15 +9,46 @@ use chrono_tz::Tz;
 
 use crate::models::{
     user_configuration::{UserConfiguration, DailyResetTimeType},
-    daily_session_stats::DailySessionStats,
     session_reset_event::SessionResetEvent,
 };
 use crate::services::time_provider::TimeProvider;
 use crate::database::{DatabaseManager, connection::DatabasePool};
 use crate::error::AppError;
 use sqlx::Row;
+use thiserror::Error;
 
 use tracing::{debug, info, warn, error, instrument};
+
+/// Session count validation error
+#[derive(Error, Debug, PartialEq)]
+pub enum SessionCountValidationError {
+    #[error("Session count {value} is out of range. Valid range: {min} to {max}")]
+    OutOfRange { min: u32, max: u32, value: i64 },
+}
+
+/// Daily reset status
+#[derive(Debug, Clone)]
+pub struct DailyResetStatus {
+    pub next_reset_time_utc: Option<i64>,
+    pub reset_due_today: bool,
+    pub current_session_count: u32,
+    pub manual_session_override: Option<u32>,
+    pub last_reset_utc: Option<i64>,
+}
+
+/// Daily session stats for the daily reset service
+#[derive(Debug, Clone)]
+pub struct DailySessionStats {
+    pub id: Option<i64>,
+    pub user_id: String,
+    pub date: chrono::NaiveDate,
+    pub session_count: u32,
+    pub manual_session_override: Option<u32>,
+    pub last_reset_utc: Option<i64>,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
 
 /// Parse time string (HH:MM) to naive time components
 fn parse_time_to_naive_time(time_str: &str) -> Option<(u32, u32)> {
@@ -39,6 +70,7 @@ fn parse_time_to_naive_time(time_str: &str) -> Option<(u32, u32)> {
 /// Daily Reset Service
 ///
 /// Provides timezone-aware daily session reset functionality with database persistence.
+#[derive(Debug)]
 pub struct DailyResetService {
     /// Time provider for deterministic testing
     time_provider: Arc<dyn TimeProvider>,
@@ -580,6 +612,185 @@ impl DailyResetService {
 
         Ok(user_config)
     }
+
+    /// Validate session count within acceptable bounds
+    #[instrument(skip(self))]
+    pub async fn validate_session_count(&self, count: i64) -> Result<(), SessionCountValidationError> {
+        const MIN_SESSION_COUNT: u32 = 0;
+        const MAX_SESSION_COUNT: u32 = 100;
+
+        if count < MIN_SESSION_COUNT as i64 || count > MAX_SESSION_COUNT as i64 {
+            return Err(SessionCountValidationError::OutOfRange {
+                min: MIN_SESSION_COUNT,
+                max: MAX_SESSION_COUNT,
+                value: count,
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Set session count with optional manual override
+    #[instrument(skip(self))]
+    pub async fn set_session_count(
+        &self,
+        user_id: &str,
+        session_count: u32,
+        manual_override: bool,
+    ) -> Result<(), AppError> {
+        // Validate session count
+        self.validate_session_count(session_count as i64).await
+            .map_err(|e| AppError::UserConfiguration(
+                crate::models::user_configuration::UserConfigurationError::InvalidSessionCount(format!("{}", e))
+            ))?;
+
+        // Get current daily stats for the user
+        let today = self.time_provider.now_utc().date_naive();
+        let daily_stats = self.get_or_create_daily_stats(user_id, &today).await?;
+
+        // Update session count
+        let mut updated_stats = daily_stats;
+        updated_stats.session_count = session_count;
+
+        if manual_override {
+            updated_stats.manual_session_override = Some(session_count);
+        } else {
+            updated_stats.manual_session_override = None;
+        }
+
+        // Save updated stats
+        self.persist_daily_session_stats(&updated_stats).await?;
+
+        info!(
+            "Set session count for user {} to {} (manual_override: {})",
+            user_id, session_count, manual_override
+        );
+
+        Ok(())
+    }
+
+    /// Get current daily reset status for a user
+    #[instrument(skip(self))]
+    pub async fn get_daily_reset_status(&self, user_id: &str) -> Result<DailyResetStatus, AppError> {
+        // Load user configuration
+        let user_config = self.load_user_configuration(user_id).await?;
+
+        // Get current daily stats
+        let today = self.time_provider.now_utc().date_naive();
+        let daily_stats = self.get_or_create_daily_stats(user_id, &today).await?;
+
+        // Calculate next reset time
+        let next_reset_time = if user_config.daily_reset_enabled {
+            Some(self.calculate_next_reset_time(&user_config)?)
+        } else {
+            None
+        };
+
+        // Determine if reset is due today
+        let reset_due_today = self.should_reset_today(&user_config);
+
+        // Get current session count (prefer manual override)
+        let current_session_count = daily_stats.manual_session_override
+            .unwrap_or(daily_stats.session_count);
+
+        Ok(DailyResetStatus {
+            next_reset_time_utc: next_reset_time.map(|dt| dt.timestamp()),
+            reset_due_today,
+            current_session_count,
+            manual_session_override: daily_stats.manual_session_override,
+            last_reset_utc: daily_stats.last_reset_utc,
+        })
+    }
+
+    /// Increment session count (automated counting)
+    #[instrument(skip(self))]
+    pub async fn increment_session_count(&self, user_id: &str) -> Result<u32, AppError> {
+        // Load user configuration
+        let user_config = self.load_user_configuration(user_id).await?;
+
+        // Get current daily stats
+        let today = self.time_provider.now_utc().date_naive();
+        let daily_stats = self.get_or_create_daily_stats(user_id, &today).await?;
+
+        // Check if manual override is active (should block automated increments)
+        if daily_stats.manual_session_override.is_some() {
+            return Err(AppError::UserConfiguration(
+                crate::models::user_configuration::UserConfigurationError::ManualOverrideActive
+            ));
+        }
+
+        // Increment session count
+        let new_count = daily_stats.session_count + 1;
+
+        // Validate new count
+        self.validate_session_count(new_count as i64).await
+            .map_err(|e| AppError::UserConfiguration(
+                crate::models::user_configuration::UserConfigurationError::InvalidSessionCount(format!("{}", e))
+            ))?;
+
+        // Update daily stats
+        let mut updated_stats = daily_stats;
+        updated_stats.session_count = new_count;
+        self.persist_daily_session_stats(&updated_stats).await?;
+
+        info!("Incremented session count for user {} to {}", user_id, new_count);
+
+        Ok(new_count)
+    }
+
+    /// Process all pending daily resets
+    #[instrument(skip(self))]
+    pub async fn process_daily_resets(&self) -> Result<Vec<SessionResetEvent>, AppError> {
+        self.process_pending_daily_resets().await
+    }
+
+    /// Get or create daily session stats for a user
+    async fn get_or_create_daily_stats(
+        &self,
+        user_id: &str,
+        date: &chrono::NaiveDate,
+    ) -> Result<DailySessionStats, AppError> {
+        // Try to load existing stats
+        if let Some(stats) = self.load_daily_session_stats(user_id, date).await? {
+            return Ok(stats);
+        }
+
+        // Create new stats using a simple in-memory approach for now
+        let new_stats = DailySessionStats {
+            id: None,
+            user_id: user_id.to_string(),
+            date: *date,
+            session_count: 0,
+            manual_session_override: None,
+            last_reset_utc: None,
+            created_at: self.time_provider.now_utc().timestamp(),
+            updated_at: self.time_provider.now_utc().timestamp(),
+        };
+
+        Ok(new_stats)
+    }
+
+    /// Load daily session stats for a user (simplified version for now)
+    async fn load_daily_session_stats(
+        &self,
+        user_id: &str,
+        date: &chrono::NaiveDate,
+    ) -> Result<Option<DailySessionStats>, AppError> {
+        // For now, return None to create new stats each time
+        // TODO: Implement proper database loading when database schema is ready
+        Ok(None)
+    }
+
+    /// Save daily session stats (simplified version for now)
+    async fn persist_daily_session_stats(&self, stats: &DailySessionStats) -> Result<(), AppError> {
+        // For now, just log the save operation
+        // TODO: Implement proper database saving when database schema is ready
+        info!(
+            "Would save daily session stats for user {}: count={}, manual_override={:?}",
+            stats.user_id, stats.session_count, stats.manual_session_override
+        );
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -614,7 +825,7 @@ mod tests {
 
         let mut config = UserConfiguration::new();
         config.set_timezone("UTC".to_string())?;
-        config.set_daily_reset_time(DailyResetTime::midnight());
+        config.set_daily_reset_time(DailyResetTimeType::Midnight);
         config.set_daily_reset_enabled(true);
 
         let next_reset = service.calculate_next_reset_time(&config)?;

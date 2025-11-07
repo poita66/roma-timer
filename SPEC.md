@@ -7,8 +7,8 @@ This way the user can start the timer on their PC and get notifications on their
 
 - React Native PWA frontend (allows for native apps later)
 - Rust Tokio backend
-- SQLite DB (for easy deployment)
-- HTTP RESTful API
+- SQLx for persistence - SQLite & PostgreSQL variants
+- WebSockets API
 - Simple shared-secret auth
 - Single binary (PWA packaged into Rust server binary)
 - Container deployment (docker-compose.yaml included)

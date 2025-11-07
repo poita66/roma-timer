@@ -92,6 +92,9 @@ axum-test = "15.0"
 # Time mocking for testing
 mockall = "0.12"
 
+# Temporary file/directory creation for testing
+tempfile = "3.8"
+
 # Clippy configuration for zero-warning policy
 [lints.clippy]
 all = "warn"

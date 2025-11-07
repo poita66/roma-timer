@@ -4,7 +4,9 @@
 //! session transitions, and real-time state management.
 
 use crate::models::timer_session::{TimerSession, TimerType, TimerSessionError};
+use crate::models::user_configuration::UserConfiguration;
 use crate::services::configuration_service::ConfigurationService;
+use crate::services::daily_reset_service::DailyResetService;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::{Mutex, RwLock};
@@ -17,6 +19,9 @@ pub struct TimerService {
 
     /// Configuration service for user settings
     configuration_service: Arc<ConfigurationService>,
+
+    /// Daily reset service for session count management
+    daily_reset_service: Option<Arc<DailyResetService>>,
 
     /// Work sessions completed in current cycle
     work_sessions_completed: Arc<Mutex<u32>>,
@@ -42,7 +47,10 @@ pub struct TimerState {
 
 impl TimerService {
     /// Create a new timer service with configuration service
-    pub async fn new(configuration_service: Arc<ConfigurationService>) -> Result<Self, TimerServiceError> {
+    pub async fn new(
+        configuration_service: Arc<ConfigurationService>,
+        daily_reset_service: Option<Arc<DailyResetService>>,
+    ) -> Result<Self, TimerServiceError> {
         let config = configuration_service.get_configuration().await
             .map_err(|e| TimerServiceError::ConfigurationError(e.to_string()))?;
 
@@ -58,6 +66,7 @@ impl TimerService {
         Ok(Self {
             session: Arc::new(RwLock::new(session)),
             configuration_service,
+            daily_reset_service,
             work_sessions_completed: Arc::new(Mutex::new(0)),
             last_update: Arc::new(Mutex::new(now)),
         })
@@ -75,7 +84,7 @@ impl TimerService {
             .as_secs();
 
         // Create a mock configuration service for testing
-        let pool = sqlx::SqlitePool::connect(":memory:").await.unwrap();
+        let pool = sqlx::SqlitePool::connect(":memory:").unwrap();
         let websocket_service = crate::services::websocket_service::WebSocketService::new(pool.clone());
         let configuration_service = Arc::new(
             tokio::task::block_in_place(|| {
@@ -88,6 +97,7 @@ impl TimerService {
         Self {
             session: Arc::new(RwLock::new(session)),
             configuration_service,
+            daily_reset_service: None,
             work_sessions_completed: Arc::new(Mutex::new(0)),
             last_update: Arc::new(Mutex::new(now)),
         }
@@ -97,6 +107,22 @@ impl TimerService {
     pub async fn get_timer_state(&self) -> TimerState {
         let session = self.session.read().await;
         let work_sessions = *self.work_sessions_completed.lock().await;
+
+        // Get session count from daily reset service if available, otherwise use local count
+        let session_count = if let Some(daily_reset_service) = &self.daily_reset_service {
+            // Try to get user ID from configuration
+            match self.configuration_service.get_configuration().await {
+                Ok(config) => {
+                    match daily_reset_service.get_daily_reset_status(&config.id).await {
+                        Ok(status) => status.current_session_count,
+                        Err(_) => work_sessions, // Fallback to local count if there's an error
+                    }
+                }
+                Err(_) => work_sessions, // Fallback to local count if config is unavailable
+            }
+        } else {
+            work_sessions
+        };
 
         TimerState {
             id: session.id.clone(),
@@ -108,7 +134,7 @@ impl TimerService {
             updated_at: session.updated_at,
             remaining_seconds: session.remaining_seconds(),
             progress_percentage: session.progress() * 100.0,
-            session_count: work_sessions,
+            session_count,
         }
     }
 
@@ -253,7 +279,30 @@ impl TimerService {
         let mut work_sessions = self.work_sessions_completed.lock().await;
 
         if session.timer_type == TimerType::Work {
-            *work_sessions += 1;
+            // Try to increment session count using daily reset service
+            if let Some(daily_reset_service) = &self.daily_reset_service {
+                match daily_reset_service.increment_session_count(&config.id).await {
+                    Ok(_) => {
+                        // Successfully incremented in daily reset service, get updated count
+                        match daily_reset_service.get_daily_reset_status(&config.id).await {
+                            Ok(status) => {
+                                *work_sessions = status.current_session_count;
+                            }
+                            Err(_) => {
+                                // If we can't get status, increment local count as fallback
+                                *work_sessions += 1;
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        // Daily reset service failed, fall back to local counting
+                        *work_sessions += 1;
+                    }
+                }
+            } else {
+                // No daily reset service, use local counting
+                *work_sessions += 1;
+            }
         }
 
         session.skip_to_next_with_config(*work_sessions, &config);

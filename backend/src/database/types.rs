@@ -101,7 +101,7 @@ mod tests {
         assert_eq!("sqlite".parse::<DatabaseType>().unwrap(), DatabaseType::Sqlite);
         assert_eq!("postgres".parse::<DatabaseType>().unwrap(), DatabaseType::Postgres);
         assert_eq!("postgresql".parse::<DatabaseType>().unwrap(), DatabaseType::Postgres);
-        assert!("POSTGRES".parse::<DatabaseType>().unwrap(), DatabaseType::Postgres);
+        assert_eq!("POSTGRES".parse::<DatabaseType>().unwrap(), DatabaseType::Postgres);
         assert!("invalid".parse::<DatabaseType>().is_err());
     }
 
