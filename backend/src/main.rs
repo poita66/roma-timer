@@ -11,6 +11,7 @@ mod database;
 mod models;
 mod services;
 mod api;
+mod error;
 
 use config::Config;
 use database::DatabaseManager;

@@ -35,6 +35,9 @@ tokio-cron-scheduler = "0.15"
 anyhow = "1.0"
 thiserror = "1.0"
 
+# Async trait support
+async-trait = "0.1"
+
 # Regular expressions for validation
 regex = "1.10"
 
@@ -87,7 +90,7 @@ postgres = ["sqlx/postgres", "sqlx-postgres"]
 axum-test = "15.0"
 
 # Time mocking for testing
-mocktime = "0.11"
+mockall = "0.12"
 
 # Clippy configuration for zero-warning policy
 [lints.clippy]
@@ -102,21 +105,3 @@ pedantic = "warn"
 expect-used = { level = "allow", check = "tests" }
 unwrap-used = { level = "allow", check = "tests" }
 dbg-macro = { level = "allow", check = "tests" }
-
-# Authentication
-hmac = "0.12"
-sha2 = "0.10"
-hex = "0.4"
-base64 = "0.21"
-
-# HTTP client for webhooks
-reqwest = { version = "0.11", features = ["json"] }
-
-# Random number generation
-rand = "0.8"
-
-# URL parsing for WebSocket query parameters
-url = "2.5"
-
-# Error handling
-thiserror = "1.0"

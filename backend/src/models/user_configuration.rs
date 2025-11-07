@@ -169,10 +169,7 @@ impl DailyResetTime {
             }
             DailyResetTimeType::Custom => {
                 if let Some(ref time) = self.time {
-                    if !regex::Regex::new(r"^(?:[01]?[0-9]|2[0-3]):[0-5][0-9]$")
-                        .unwrap()
-                        .is_match(time)
-                    {
+                    if !is_valid_time_format(time) {
                         return Err(UserConfigurationError::InvalidResetTime(time.clone()));
                     }
                 }
@@ -181,6 +178,39 @@ impl DailyResetTime {
         }
         Ok(())
     }
+}
+
+/// Helper function to validate time format HH:MM
+fn is_valid_time_format(time_str: &str) -> bool {
+    // Check basic format length
+    if time_str.len() != 5 {
+        return false;
+    }
+
+    let parts: Vec<&str> = time_str.split(':').collect();
+    if parts.len() != 2 {
+        return false;
+    }
+
+    // Check hour (00-23)
+    if let Ok(hour) = parts[0].parse::<u8>() {
+        if hour > 23 {
+            return false;
+        }
+    } else {
+        return false;
+    }
+
+    // Check minute (00-59)
+    if let Ok(minute) = parts[1].parse::<u8>() {
+        if minute > 59 {
+            return false;
+        }
+    } else {
+        return false;
+    }
+
+    true
 }
 
 impl Default for DailyResetTime {
