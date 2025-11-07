@@ -6,10 +6,9 @@
 use std::sync::Arc;
 use chrono::{DateTime, Utc, TimeZone};
 use chrono_tz::Tz;
-use uuid::Uuid;
 
 use crate::models::{
-    user_configuration::{UserConfiguration, DailyResetTimeType, DailyResetTime},
+    user_configuration::{UserConfiguration, DailyResetTimeType},
     daily_session_stats::DailySessionStats,
     session_reset_event::SessionResetEvent,
 };
@@ -69,7 +68,7 @@ impl DailyResetService {
             return Ok(Utc::now()); // Return current time if disabled
         }
 
-        let current_time = self.time_provider.now();
+        let current_time = self.time_provider.now_utc();
         let user_timezone: Tz = user_config.timezone.parse()
             .map_err(|e| AppError::UserConfiguration(
                 crate::models::user_configuration::UserConfigurationError::InvalidTimezone(user_config.timezone.clone())
@@ -103,6 +102,7 @@ impl DailyResetService {
         };
 
         let reset_local = user_timezone.from_local_datetime(&reset_time.unwrap())
+            .single()
             .ok_or_else(|| {
                 warn!("Failed to create local datetime for reset time");
                 AppError::UserConfiguration(
@@ -143,6 +143,7 @@ impl DailyResetService {
             };
 
             let tomorrow_local = user_timezone.from_local_datetime(&tomorrow_reset_time.unwrap())
+                .single()
                 .ok_or_else(|| {
                     warn!("Failed to create local datetime for tomorrow");
                     AppError::UserConfiguration(
@@ -171,7 +172,7 @@ impl DailyResetService {
             let last_reset = DateTime::from_timestamp(last_reset_utc as i64, 0)
                 .ok_or_else(|| {
                     AppError::UserConfiguration(
-                        crate::models::user_configuration::UserConfigurationError::InvalidResetTimestamp(last_reset_utc)
+                        crate::models::user_configuration::UserConfigurationError::InvalidResetTime(format!("Invalid timestamp: {}", last_reset_utc))
                     )
                 })?;
 
@@ -181,7 +182,7 @@ impl DailyResetService {
                 })?;
 
             let last_reset_local = last_reset.with_timezone(&user_timezone);
-            let current_local = self.time_provider.now().with_timezone(&user_timezone);
+            let current_local = self.time_provider.now_utc().with_timezone(&user_timezone);
 
             // Check if last reset was on a different day
             Ok(last_reset_local.date_naive() != current_local.date_naive())
@@ -241,7 +242,7 @@ impl DailyResetService {
     async fn save_daily_session_stats(&self, user_config: &UserConfiguration, reset_time: DateTime<Utc>) -> Result<DailySessionStats, AppError> {
         let today_date = reset_time.date_naive().to_string();
         let user_timezone: Tz = user_config.timezone.parse()
-            .map_err(|e| AppError::UserConfiguration(
+            .map_err(|_e| AppError::UserConfiguration(
                 crate::models::user_configuration::UserConfigurationError::InvalidTimezone(user_config.timezone.clone())
             ))?;
 
@@ -253,7 +254,7 @@ impl DailyResetService {
             stats.work_sessions_completed = user_config.today_session_count as i64;
             stats.total_work_seconds = (user_config.today_session_count * user_config.work_duration) as i64; // Estimate
             stats.manual_overrides = user_config.manual_session_override.unwrap_or(0) as i64;
-            stats.updated_at = reset_time.timestamp() as u64;
+            stats.updated_at = reset_time.timestamp();
 
             // Update in database
             self.update_daily_session_stats(&stats).await?;
@@ -264,7 +265,7 @@ impl DailyResetService {
             // Create new stats
             let stats = DailySessionStats::new(
                 user_config.id.clone(),
-                today_date,
+                today_date.clone(),
                 user_timezone.to_string(),
             );
 
@@ -301,13 +302,14 @@ impl DailyResetService {
             Some(row) => {
                 let stats = DailySessionStats {
                     id: row.get("id"),
-                    user_id: row.get("user_id"),
+                    user_configuration_id: row.get("user_configuration_id"),
                     date: row.get("date"),
                     timezone: row.get("timezone"),
                     work_sessions_completed: row.get("work_sessions_completed"),
                     total_work_seconds: row.get("total_work_seconds"),
                     total_break_seconds: row.get("total_break_seconds"),
                     manual_overrides: row.get("manual_overrides"),
+                    final_session_count: row.get("final_session_count"),
                     created_at: row.get("created_at"),
                     updated_at: row.get("updated_at"),
                 };
@@ -323,23 +325,24 @@ impl DailyResetService {
             DatabasePool::Sqlite(pool) => pool,
         };
 
-        let id = sqlx::query(
+        let _ = sqlx::query(
             r#"
             INSERT INTO daily_session_stats (
-                id, user_id, date, timezone, work_sessions_completed,
+                id, user_configuration_id, date, timezone, work_sessions_completed,
                 total_work_seconds, total_break_seconds, manual_overrides,
-                created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                final_session_count, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
         .bind(&stats.id)
-        .bind(&stats.user_id)
+        .bind(&stats.user_configuration_id)
         .bind(&stats.date)
         .bind(&stats.timezone)
         .bind(stats.work_sessions_completed)
         .bind(stats.total_work_seconds)
         .bind(stats.total_break_seconds)
         .bind(stats.manual_overrides)
+        .bind(stats.final_session_count)
         .bind(stats.created_at)
         .bind(stats.updated_at)
         .execute(pool)
@@ -384,7 +387,7 @@ impl DailyResetService {
             DatabasePool::Sqlite(pool) => pool,
         };
 
-        let timestamp = reset_time.timestamp() as u64;
+        let timestamp = reset_time.timestamp();
 
         sqlx::query(
             r#"
@@ -417,29 +420,33 @@ impl DailyResetService {
             DatabasePool::Sqlite(pool) => pool,
         };
 
-        let event = SessionResetEvent::new(
+        let event = SessionResetEvent::scheduled_daily_reset(
             user_config.id.clone(),
             previous_session_count,
-            session_stats.id.clone(),
+            reset_time,
             user_config.timezone.clone(),
         );
 
         sqlx::query(
             r#"
             INSERT INTO session_reset_events (
-                id, user_id, previous_session_count, daily_session_stats_id,
-                reset_reason, timezone, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                id, user_configuration_id, reset_type, previous_count, new_count,
+                reset_timestamp_utc, user_timezone, local_reset_time, trigger_source,
+                context, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
         .bind(&event.id)
-        .bind(&event.user_id)
-        .bind(event.previous_session_count)
-        .bind(&event.daily_session_stats_id)
-        .bind(&event.reset_reason)
-        .bind(&event.timezone)
+        .bind(&event.user_configuration_id)
+        .bind(&event.reset_type)
+        .bind(event.previous_count)
+        .bind(event.new_count)
+        .bind(event.reset_timestamp_utc)
+        .bind(&event.user_timezone)
+        .bind(&event.local_reset_time)
+        .bind(&event.trigger_source)
+        .bind(&event.context)
         .bind(event.created_at)
-        .bind(event.updated_at)
         .execute(pool)
         .await
         .map_err(|e| AppError::Database(e))?;

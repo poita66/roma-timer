@@ -42,11 +42,11 @@ impl TaskHandler for DailyResetTaskHandler {
                 // Log details of each reset event
                 for event in reset_events {
                     info!(
-                        "Reset completed for user {} - previous sessions: {}, reason: {}, timezone: {}",
-                        event.user_id,
-                        event.previous_session_count,
-                        event.reset_reason,
-                        event.timezone
+                        "Reset completed for user {} - previous sessions: {}, type: {}, timezone: {}",
+                        event.user_configuration_id,
+                        event.previous_count,
+                        event.reset_type.display_name(),
+                        event.user_timezone
                     );
                 }
 
@@ -54,7 +54,7 @@ impl TaskHandler for DailyResetTaskHandler {
             }
             Err(e) => {
                 error!("Daily reset task failed: {}", e);
-                Err(SchedulingError::TaskExecution(format!("Daily reset failed: {}", e)))
+                Err(SchedulingError::TaskExecutionFailed { message: format!("Daily reset failed: {}", e) })
             }
         }
     }

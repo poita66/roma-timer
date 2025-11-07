@@ -279,7 +279,7 @@ pub struct UserConfiguration {
 
     /// Unix timestamp of last daily reset (UTC)
     #[sqlx(rename = "last_daily_reset_utc")]
-    pub last_daily_reset_utc: Option<u64>,
+    pub last_daily_reset_utc: Option<i64>,
 
     /// Session count for today (resets daily)
     #[sqlx(rename = "today_session_count")]
@@ -291,11 +291,11 @@ pub struct UserConfiguration {
 
     /// Creation timestamp (Unix timestamp)
     #[sqlx(rename = "created_at")]
-    pub created_at: u64,
+    pub created_at: i64,
 
     /// Last update timestamp (Unix timestamp)
     #[sqlx(rename = "updated_at")]
-    pub updated_at: u64,
+    pub updated_at: i64,
 }
 
 impl UserConfiguration {

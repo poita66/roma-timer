@@ -2,7 +2,8 @@
 //!
 //! Provides timezone validation, conversion, and utility functions for the daily reset feature.
 
-use chrono_tz::{Tz, TZ_VARIANTS, OffsetComponents};
+use chrono_tz::{Tz, TZ_VARIANTS};
+use chrono::{TimeZone, Datelike, Offset};
 use regex::Regex;
 use std::collections::HashSet;
 
@@ -271,7 +272,7 @@ impl TimezoneService {
             observes_dst,
             current_utc_offset: current_offset,
             current_local_time: local_time.naive_local(),
-            is_dst: local_time.offset().dst_offset().is_some(),
+            is_dst: local_time.offset().fix().local_minus_utc() != current_offset,
         })
     }
 }

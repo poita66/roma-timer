@@ -14,7 +14,7 @@ use axum::{
     },
     response::Response,
 };
-use futures_util::{SinkExt, StreamExt};
+use futures_util::StreamExt;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -508,7 +508,7 @@ impl WebSocketService {
     /// Send message to specific device
     pub async fn send_to_device(
         &self,
-        device_id: &str,
+        _device_id: &str,
         message: WebSocketMessage,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // This would require storing WebSocket senders in the connection model

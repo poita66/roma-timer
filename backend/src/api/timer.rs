@@ -8,7 +8,7 @@ use crate::models::timer_session::TimerSession;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
-    response::{Json, IntoResponse},
+    response::Json,
     routing::{get, post},
     Router,
 };

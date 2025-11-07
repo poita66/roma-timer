@@ -9,7 +9,6 @@ use axum::{
 };
 use serde_json::json;
 use thiserror::Error;
-use uuid::Uuid;
 
 /// Application error types
 #[derive(Error, Debug)]

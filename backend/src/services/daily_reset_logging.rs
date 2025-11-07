@@ -7,7 +7,7 @@
 //! - Performance metrics and analytics
 
 use tracing::{debug, error, info, warn, Span};
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use serde_json::{json, Value};
 use uuid::Uuid;
 
@@ -453,7 +453,7 @@ pub mod utils {
         user_id: &str,
         request_id: Option<&str>,
     ) -> Span {
-        let mut span = tracing::info_span!(
+        let span = tracing::info_span!(
             "daily_reset_operation",
             operation = %operation,
             user_id = %user_id,

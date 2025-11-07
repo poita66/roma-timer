@@ -318,7 +318,7 @@ impl ConnectionPool {
     /// Mark inactive connections
     pub fn mark_inactive_connections(&mut self, timeout_seconds: u64) -> Vec<String> {
         let mut inactive_ids = Vec::new();
-        let now = SystemTime::now()
+        let _now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_secs();
