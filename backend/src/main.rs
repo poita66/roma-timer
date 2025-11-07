@@ -12,6 +12,7 @@ mod models;
 mod services;
 mod api;
 mod error;
+mod websocket;
 
 use config::Config;
 use database::DatabaseManager;
