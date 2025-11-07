@@ -150,12 +150,12 @@ impl DailySessionStats {
 
     /// Get work duration in minutes
     pub fn total_work_minutes(&self) -> u32 {
-        self.total_work_seconds / 60
+        (self.total_work_seconds / 60) as u32
     }
 
     /// Get break duration in minutes
     pub fn total_break_minutes(&self) -> u32 {
-        self.total_break_seconds / 60
+        (self.total_break_seconds / 60) as u32
     }
 
     /// Get average work session duration in minutes
@@ -218,23 +218,23 @@ impl DailySessionStats {
         }
 
         if self.work_sessions_completed < 0 {
-            return Err(DailySessionStatsError::InvalidSessionCount);
+            return Err(DailySessionStatsError::InvalidSessionCount(self.work_sessions_completed));
         }
 
         if self.total_work_seconds < 0 {
-            return Err(DailySessionStatsError::InvalidWorkTime);
+            return Err(DailySessionStatsError::InvalidWorkTime(self.total_work_seconds));
         }
 
         if self.total_break_seconds < 0 {
-            return Err(DailySessionStatsError::InvalidBreakTime);
+            return Err(DailySessionStatsError::InvalidBreakTime(self.total_break_seconds));
         }
 
         if self.manual_overrides < 0 {
-            return Err(DailySessionStatsError::InvalidOverrideCount);
+            return Err(DailySessionStatsError::InvalidOverrideCount(self.manual_overrides));
         }
 
         if self.final_session_count < 0 {
-            return Err(DailySessionStatsError::InvalidFinalCount);
+            return Err(DailySessionStatsError::InvalidFinalCount(self.final_session_count));
         }
 
         if self.updated_at < self.created_at {

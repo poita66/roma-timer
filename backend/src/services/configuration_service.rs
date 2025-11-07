@@ -22,6 +22,15 @@ struct UserConfigurationRow {
     webhook_url: Option<String>,
     wait_for_interaction: bool,
     theme: String,
+    // Daily session reset fields
+    timezone: String,
+    daily_reset_time_type: String,
+    daily_reset_time_hour: Option<i64>,
+    daily_reset_time_custom: Option<String>,
+    daily_reset_enabled: bool,
+    last_daily_reset_utc: Option<i64>,
+    today_session_count: i64,
+    manual_session_override: Option<i64>,
     created_at: i64,
     updated_at: i64,
 }
@@ -115,7 +124,10 @@ impl ConfigurationService {
             r#"
             SELECT id, work_duration, short_break_duration, long_break_duration,
                    long_break_frequency, notifications_enabled, webhook_url,
-                   wait_for_interaction, theme, created_at, updated_at
+                   wait_for_interaction, theme, timezone, daily_reset_time_type,
+                   daily_reset_time_hour, daily_reset_time_custom, daily_reset_enabled,
+                   last_daily_reset_utc, today_session_count, manual_session_override,
+                   created_at, updated_at
             FROM user_configurations
             ORDER BY updated_at DESC
             LIMIT 1
@@ -139,6 +151,19 @@ impl ConfigurationService {
                         "Dark" => crate::models::user_configuration::Theme::Dark,
                         _ => crate::models::user_configuration::Theme::Light,
                     },
+                    // Daily session reset fields
+                    timezone: row.timezone,
+                    daily_reset_time_type: match row.daily_reset_time_type.as_str() {
+                        "hour" => crate::models::user_configuration::DailyResetTimeType::Hour,
+                        "custom" => crate::models::user_configuration::DailyResetTimeType::Custom,
+                        _ => crate::models::user_configuration::DailyResetTimeType::Midnight,
+                    },
+                    daily_reset_time_hour: row.daily_reset_time_hour.map(|x| x as u8),
+                    daily_reset_time_custom: row.daily_reset_time_custom,
+                    daily_reset_enabled: row.daily_reset_enabled,
+                    last_daily_reset_utc: row.last_daily_reset_utc.map(|x| x as u64),
+                    today_session_count: row.today_session_count as u32,
+                    manual_session_override: row.manual_session_override.map(|x| x as u32),
                     created_at: row.created_at as u64,
                     updated_at: row.updated_at as u64,
                 };

@@ -8,6 +8,7 @@ pub mod websocket_service;
 pub mod time_provider;
 pub mod daily_reset_logging;
 pub mod daily_reset_service;
+pub mod daily_reset_task_handler;
 pub mod timezone_service;
 pub mod scheduling_service;
 

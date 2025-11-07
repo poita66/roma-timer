@@ -10,9 +10,13 @@ use uuid::Uuid;
 
 use crate::models::{
     user_configuration::{UserConfiguration, DailyResetTimeType, DailyResetTime},
+    daily_session_stats::DailySessionStats,
+    session_reset_event::SessionResetEvent,
 };
 use crate::services::time_provider::TimeProvider;
+use crate::database::{DatabaseManager, connection::DatabasePool};
 use crate::error::AppError;
+use sqlx::Row;
 
 use tracing::{debug, info, warn, error, instrument};
 
@@ -35,20 +39,23 @@ fn parse_time_to_naive_time(time_str: &str) -> Option<(u32, u32)> {
 
 /// Daily Reset Service
 ///
-/// Provides timezone-aware daily session reset functionality.
-#[derive(Debug, Clone)]
+/// Provides timezone-aware daily session reset functionality with database persistence.
 pub struct DailyResetService {
     /// Time provider for deterministic testing
     time_provider: Arc<dyn TimeProvider>,
+    /// Database manager for persistence
+    database_manager: Arc<DatabaseManager>,
 }
 
 impl DailyResetService {
     /// Create a new daily reset service
     pub fn new(
         time_provider: Arc<dyn TimeProvider>,
+        database_manager: Arc<DatabaseManager>,
     ) -> Self {
         Self {
             time_provider,
+            database_manager,
         }
     }
 
@@ -200,6 +207,371 @@ impl DailyResetService {
                 )
             })?;
         Ok(())
+    }
+
+    // ===== Database Operations =====
+
+    /// Perform a complete daily session reset for a user configuration
+    /// This is the main method that orchestrates the entire reset process
+    #[instrument(skip(self, user_config))]
+    pub async fn perform_daily_reset(&self, user_config: &UserConfiguration) -> Result<SessionResetEvent, AppError> {
+        let current_time = self.time_provider.now_utc();
+
+        info!("Starting daily session reset for user {}", user_config.id);
+
+        // 1. Get current session count before reset
+        let previous_session_count = self.get_current_session_count(user_config);
+
+        // 2. Save today's session stats to database
+        let session_stats = self.save_daily_session_stats(user_config, current_time).await?;
+
+        // 3. Reset user configuration in database
+        self.reset_user_configuration(user_config, current_time).await?;
+
+        // 4. Create reset event for audit trail
+        let reset_event = self.create_reset_event(user_config, previous_session_count, session_stats, current_time).await?;
+
+        info!("Daily session reset completed successfully for user {}", user_config.id);
+
+        Ok(reset_event)
+    }
+
+    /// Save today's session statistics to the database
+    #[instrument(skip(self, user_config))]
+    async fn save_daily_session_stats(&self, user_config: &UserConfiguration, reset_time: DateTime<Utc>) -> Result<DailySessionStats, AppError> {
+        let today_date = reset_time.date_naive().to_string();
+        let user_timezone: Tz = user_config.timezone.parse()
+            .map_err(|e| AppError::UserConfiguration(
+                crate::models::user_configuration::UserConfigurationError::InvalidTimezone(user_config.timezone.clone())
+            ))?;
+
+        // Check if stats already exist for today
+        let existing_stats = self.get_daily_session_stats(&user_config.id, &today_date).await?;
+
+        if let Some(mut stats) = existing_stats {
+            // Update existing stats
+            stats.work_sessions_completed = user_config.today_session_count as i64;
+            stats.total_work_seconds = (user_config.today_session_count * user_config.work_duration) as i64; // Estimate
+            stats.manual_overrides = user_config.manual_session_override.unwrap_or(0) as i64;
+            stats.updated_at = reset_time.timestamp() as u64;
+
+            // Update in database
+            self.update_daily_session_stats(&stats).await?;
+
+            info!("Updated existing daily session stats for user {} on {}", user_config.id, today_date);
+            Ok(stats)
+        } else {
+            // Create new stats
+            let stats = DailySessionStats::new(
+                user_config.id.clone(),
+                today_date,
+                user_timezone.to_string(),
+            );
+
+            // Save to database
+            let saved_stats = self.insert_daily_session_stats(&stats).await?;
+
+            info!("Created new daily session stats for user {} on {}", user_config.id, today_date);
+            Ok(saved_stats)
+        }
+    }
+
+    /// Get daily session stats for a specific date
+    async fn get_daily_session_stats(&self, user_id: &str, date: &str) -> Result<Option<DailySessionStats>, AppError> {
+        let pool = match &self.database_manager.pool {
+            DatabasePool::Sqlite(pool) => pool,
+        };
+
+        let row = sqlx::query(
+            r#"
+            SELECT id, user_id, date, timezone, work_sessions_completed,
+                   total_work_seconds, total_break_seconds, manual_overrides,
+                   created_at, updated_at
+            FROM daily_session_stats
+            WHERE user_id = ? AND date = ?
+            "#
+        )
+        .bind(user_id)
+        .bind(date)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| AppError::Database(e))?;
+
+        match row {
+            Some(row) => {
+                let stats = DailySessionStats {
+                    id: row.get("id"),
+                    user_id: row.get("user_id"),
+                    date: row.get("date"),
+                    timezone: row.get("timezone"),
+                    work_sessions_completed: row.get("work_sessions_completed"),
+                    total_work_seconds: row.get("total_work_seconds"),
+                    total_break_seconds: row.get("total_break_seconds"),
+                    manual_overrides: row.get("manual_overrides"),
+                    created_at: row.get("created_at"),
+                    updated_at: row.get("updated_at"),
+                };
+                Ok(Some(stats))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// Insert new daily session stats
+    async fn insert_daily_session_stats(&self, stats: &DailySessionStats) -> Result<DailySessionStats, AppError> {
+        let pool = match &self.database_manager.pool {
+            DatabasePool::Sqlite(pool) => pool,
+        };
+
+        let id = sqlx::query(
+            r#"
+            INSERT INTO daily_session_stats (
+                id, user_id, date, timezone, work_sessions_completed,
+                total_work_seconds, total_break_seconds, manual_overrides,
+                created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            "#
+        )
+        .bind(&stats.id)
+        .bind(&stats.user_id)
+        .bind(&stats.date)
+        .bind(&stats.timezone)
+        .bind(stats.work_sessions_completed)
+        .bind(stats.total_work_seconds)
+        .bind(stats.total_break_seconds)
+        .bind(stats.manual_overrides)
+        .bind(stats.created_at)
+        .bind(stats.updated_at)
+        .execute(pool)
+        .await
+        .map_err(|e| AppError::Database(e))?;
+
+        debug!("Inserted daily session stats with ID: {}", stats.id);
+        Ok(stats.clone())
+    }
+
+    /// Update existing daily session stats
+    async fn update_daily_session_stats(&self, stats: &DailySessionStats) -> Result<(), AppError> {
+        let pool = match &self.database_manager.pool {
+            DatabasePool::Sqlite(pool) => pool,
+        };
+
+        sqlx::query(
+            r#"
+            UPDATE daily_session_stats
+            SET work_sessions_completed = ?, total_work_seconds = ?,
+                total_break_seconds = ?, manual_overrides = ?, updated_at = ?
+            WHERE id = ?
+            "#
+        )
+        .bind(stats.work_sessions_completed)
+        .bind(stats.total_work_seconds)
+        .bind(stats.total_break_seconds)
+        .bind(stats.manual_overrides)
+        .bind(stats.updated_at)
+        .bind(&stats.id)
+        .execute(pool)
+        .await
+        .map_err(|e| AppError::Database(e))?;
+
+        debug!("Updated daily session stats with ID: {}", stats.id);
+        Ok(())
+    }
+
+    /// Reset user configuration session counts
+    async fn reset_user_configuration(&self, user_config: &UserConfiguration, reset_time: DateTime<Utc>) -> Result<(), AppError> {
+        let pool = match &self.database_manager.pool {
+            DatabasePool::Sqlite(pool) => pool,
+        };
+
+        let timestamp = reset_time.timestamp() as u64;
+
+        sqlx::query(
+            r#"
+            UPDATE user_configurations
+            SET today_session_count = 0, manual_session_override = NULL,
+                last_daily_reset_utc = ?, updated_at = ?
+            WHERE id = ?
+            "#
+        )
+        .bind(timestamp)
+        .bind(timestamp)
+        .bind(&user_config.id)
+        .execute(pool)
+        .await
+        .map_err(|e| AppError::Database(e))?;
+
+        info!("Reset user configuration session counts for user {}", user_config.id);
+        Ok(())
+    }
+
+    /// Create a reset event for audit trail
+    async fn create_reset_event(
+        &self,
+        user_config: &UserConfiguration,
+        previous_session_count: u32,
+        session_stats: DailySessionStats,
+        reset_time: DateTime<Utc>,
+    ) -> Result<SessionResetEvent, AppError> {
+        let pool = match &self.database_manager.pool {
+            DatabasePool::Sqlite(pool) => pool,
+        };
+
+        let event = SessionResetEvent::new(
+            user_config.id.clone(),
+            previous_session_count,
+            session_stats.id.clone(),
+            user_config.timezone.clone(),
+        );
+
+        sqlx::query(
+            r#"
+            INSERT INTO session_reset_events (
+                id, user_id, previous_session_count, daily_session_stats_id,
+                reset_reason, timezone, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            "#
+        )
+        .bind(&event.id)
+        .bind(&event.user_id)
+        .bind(event.previous_session_count)
+        .bind(&event.daily_session_stats_id)
+        .bind(&event.reset_reason)
+        .bind(&event.timezone)
+        .bind(event.created_at)
+        .bind(event.updated_at)
+        .execute(pool)
+        .await
+        .map_err(|e| AppError::Database(e))?;
+
+        info!("Created reset event with ID: {} for user: {}", event.id, user_config.id);
+        Ok(event)
+    }
+
+    /// Check if any users need daily reset and perform it
+    /// This method should be called by the scheduled task
+    #[instrument(skip(self))]
+    pub async fn process_pending_daily_resets(&self) -> Result<Vec<SessionResetEvent>, AppError> {
+        info!("Processing pending daily resets");
+
+        let pool = match &self.database_manager.pool {
+            DatabasePool::Sqlite(pool) => pool,
+        };
+
+        // Find all users with daily reset enabled who need reset
+        let rows = sqlx::query(
+            r#"
+            SELECT id, timezone, last_daily_reset_utc, daily_reset_time_type,
+                   daily_reset_time_hour, daily_reset_time_custom, today_session_count
+            FROM user_configurations
+            WHERE daily_reset_enabled = 1
+            "#
+        )
+        .fetch_all(pool)
+        .await
+        .map_err(|e| AppError::Database(e))?;
+
+        let mut reset_events = Vec::new();
+
+        for row in rows {
+            let user_id: String = row.get("id");
+            let timezone: String = row.get("timezone");
+            let last_reset: Option<i64> = row.get("last_daily_reset_utc");
+            let today_session_count: i32 = row.get("today_session_count");
+
+            // Skip if no sessions today
+            if today_session_count == 0 && last_reset.is_none() {
+                continue;
+            }
+
+            // Check if reset is needed (simplified check - in production, use timezone-aware calculation)
+            let current_time = self.time_provider.now_utc();
+            let needs_reset = match last_reset {
+                Some(last_reset_ts) => {
+                    let last_reset = DateTime::from_timestamp(last_reset_ts, 0)
+                        .ok_or_else(|| AppError::Database(sqlx::Error::Decode("Invalid timestamp".into())))?;
+                    let hours_since_reset = current_time.signed_duration_since(last_reset).num_hours();
+                    hours_since_reset >= 24
+                }
+                None => false, // No previous reset, but no sessions either
+            };
+
+            if needs_reset {
+                info!("User {} needs daily reset", user_id);
+
+                // Load full user configuration
+                let user_config = self.load_user_configuration(&user_id).await?;
+
+                // Perform reset
+                match self.perform_daily_reset(&user_config).await {
+                    Ok(reset_event) => {
+                        reset_events.push(reset_event);
+                    }
+                    Err(e) => {
+                        error!("Failed to perform daily reset for user {}: {}", user_id, e);
+                        // Continue with other users
+                    }
+                }
+            }
+        }
+
+        info!("Completed processing pending daily resets. Processed {} users.", reset_events.len());
+        Ok(reset_events)
+    }
+
+    /// Load user configuration from database
+    async fn load_user_configuration(&self, user_id: &str) -> Result<UserConfiguration, AppError> {
+        let pool = match &self.database_manager.pool {
+            DatabasePool::Sqlite(pool) => pool,
+        };
+
+        let row = sqlx::query(
+            r#"
+            SELECT id, work_duration, short_break_duration, long_break_duration,
+                   long_break_frequency, notifications_enabled, webhook_url,
+                   wait_for_interaction, theme, timezone, daily_reset_time_type,
+                   daily_reset_time_hour, daily_reset_time_custom, daily_reset_enabled,
+                   last_daily_reset_utc, today_session_count, manual_session_override,
+                   created_at, updated_at
+            FROM user_configurations
+            WHERE id = ?
+            "#
+        )
+        .bind(user_id)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| AppError::Database(e))?;
+
+        let user_config = UserConfiguration {
+            id: row.get("id"),
+            work_duration: row.get("work_duration"),
+            short_break_duration: row.get("short_break_duration"),
+            long_break_duration: row.get("long_break_duration"),
+            long_break_frequency: row.get("long_break_frequency"),
+            notifications_enabled: row.get("notifications_enabled"),
+            webhook_url: row.get("webhook_url"),
+            wait_for_interaction: row.get("wait_for_interaction"),
+            theme: match row.get::<String, _>("theme").as_str() {
+                "Dark" => crate::models::user_configuration::Theme::Dark,
+                _ => crate::models::user_configuration::Theme::Light,
+            },
+            timezone: row.get("timezone"),
+            daily_reset_time_type: match row.get::<String, _>("daily_reset_time_type").as_str() {
+                "hour" => crate::models::user_configuration::DailyResetTimeType::Hour,
+                "custom" => crate::models::user_configuration::DailyResetTimeType::Custom,
+                _ => crate::models::user_configuration::DailyResetTimeType::Midnight,
+            },
+            daily_reset_time_hour: row.get("daily_reset_time_hour"),
+            daily_reset_time_custom: row.get("daily_reset_time_custom"),
+            daily_reset_enabled: row.get("daily_reset_enabled"),
+            last_daily_reset_utc: row.get("last_daily_reset_utc"),
+            today_session_count: row.get("today_session_count"),
+            manual_session_override: row.get("manual_session_override"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        };
+
+        Ok(user_config)
     }
 }
 

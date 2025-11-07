@@ -9,7 +9,7 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 /// Task types for scheduled operations
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "text")]
 pub enum ScheduledTaskType {
     #[serde(rename = "daily_reset")]

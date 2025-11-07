@@ -2,7 +2,7 @@
 //!
 //! Provides timezone validation, conversion, and utility functions for the daily reset feature.
 
-use chrono_tz::{Tz, TZ_VARIANTS};
+use chrono_tz::{Tz, TZ_VARIANTS, OffsetComponents};
 use regex::Regex;
 use std::collections::HashSet;
 
@@ -245,7 +245,7 @@ impl TimezoneService {
             "MT" | "MOUNTAIN" => "US/Mountain",
             "PT" | "PACIFIC" => "US/Pacific",
             "GMT" => "Europe/London",
-            _ => trimmed.to_string(),
+            _ => trimmed,
         }
         .to_string()
     }
