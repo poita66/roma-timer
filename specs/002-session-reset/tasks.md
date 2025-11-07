@@ -70,11 +70,11 @@ description: "Task list for Daily Session Reset feature implementation"
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T017 [P] [US1] Unit test for daily reset time calculation in backend/tests/unit/daily_reset_service_tests.rs
-- [ ] T018 [P] [US1] Unit test for timezone handling in backend/tests/unit/timezone_service_tests.rs
-- [ ] T019 [P] [US1] Unit test for background task scheduling in backend/tests/unit/scheduling_service_tests.rs
-- [ ] T020 [P] [US1] Integration test for complete daily reset cycle in backend/tests/integration/session_reset_api_tests.rs
-- [ ] T021 [P] [US1] Integration test for timezone-aware scheduling in backend/tests/integration/timezone_reset_tests.rs
+- [X] T017 [P] [US1] Unit test for daily reset time calculation in backend/tests/unit/daily_reset_service_tests.rs
+- [X] T018 [P] [US1] Unit test for timezone handling in backend/tests/unit/timezone_service_tests.rs
+- [X] T019 [P] [US1] Unit test for background task scheduling in backend/tests/unit/scheduling_service_tests.rs
+- [X] T020 [P] [US1] Integration test for complete daily reset cycle in backend/tests/integration/session_reset_api_tests.rs
+- [X] T021 [P] [US1] Integration test for timezone-aware scheduling in backend/tests/integration/timezone_reset_tests.rs
 
 ### Implementation for User Story 1
 
