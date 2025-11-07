@@ -73,7 +73,7 @@ description: "Task list for Daily Session Reset feature implementation"
 - [X] T017 [P] [US1] Unit test for daily reset time calculation in backend/tests/unit/daily_reset_service_tests.rs
 - [X] T018 [P] [US1] Unit test for timezone handling in backend/tests/unit/timezone_service_tests.rs
 - [X] T019 [P] [US1] Unit test for background task scheduling in backend/tests/unit/scheduling_service_tests.rs
-- [X] T020 [P] [US1] Integration test for complete daily reset cycle in backend/tests/integration/session_reset_api_tests.rs
+- [X] T020 [P] [US1] Integration test for complete daily reset cycle in backend/tests/integration/session_reset_websocket_tests.rs
 - [X] T021 [P] [US1] Integration test for timezone-aware scheduling in backend/tests/integration/timezone_reset_tests.rs
 
 ### Implementation for User Story 1
@@ -90,16 +90,16 @@ description: "Task list for Daily Session Reset feature implementation"
 - [ ] T028 [US1] Create SchedulingService in backend/src/services/scheduling_service.rs
 - [ ] T029 [US1] Implement daily reset logic in DailyResetService (depends on T026-T028)
 
-#### API Layer
-- [ ] T030 [P] [US1] Create daily reset configuration endpoints in backend/src/api/session_reset.rs
-- [ ] T031 [US1] Implement PUT /api/configuration/daily-reset endpoint
-- [ ] T032 [US1] Implement PUT /api/configuration/timezone endpoint
-- [ ] T033 [P] [US1] Add request/response DTOs for daily reset API in backend/src/models/dto/
+#### WebSocket Communication Layer
+- [ ] T030 [P] [US1] Create daily reset configuration message handlers in backend/src/websocket/handlers/daily_reset.rs
+- [ ] T031 [US1] Implement configure_daily_reset WebSocket message procedure
+- [ ] T032 [US1] Implement configure_timezone WebSocket message procedure
+- [ ] T033 [P] [US1] Add request/response message schemas for daily reset WebSocket procedures in backend/src/models/websocket_messages/
 
 #### Frontend Components
 - [ ] T034 [P] [US1] Create TimezonePicker component in frontend/src/components/TimezonePicker.tsx
 - [ ] T035 [P] [US1] Create DailyResetConfig component in frontend/src/components/DailyResetConfig.tsx
-- [ ] T036 [US1] Create dailyResetApi service in frontend/src/services/dailyResetApi.ts
+- [ ] T036 [US1] Create dailyResetWebSocket service in frontend/src/services/dailyResetWebSocket.ts
 - [ ] T037 [P] [US1] Create useDailyReset hook in frontend/src/hooks/useDailyReset.ts
 
 #### Integration and Real-time
@@ -122,7 +122,7 @@ description: "Task list for Daily Session Reset feature implementation"
 
 - [ ] T042 [P] [US2] Unit test for manual session count validation in backend/tests/unit/session_count_tests.rs
 - [ ] T043 [P] [US2] Unit test for session override behavior during reset in backend/tests/unit/session_override_tests.rs
-- [ ] T044 [P] [US2] Integration test for manual session count API in backend/tests/integration/session_count_api_tests.rs
+- [ ] T044 [P] [US2] Integration test for manual session count WebSocket procedures in backend/tests/integration/session_count_websocket_tests.rs
 - [ ] T045 [P] [US2] Integration test for WebSocket sync of manual changes in backend/tests/integration/session_sync_tests.rs
 
 ### Implementation for User Story 2
@@ -132,16 +132,16 @@ description: "Task list for Daily Session Reset feature implementation"
 - [ ] T047 [P] [US2] Add session count validation in backend/src/services/daily_reset_service.rs
 - [ ] T048 [US2] Implement manual override persistence in backend/src/services/daily_reset_service.rs
 
-#### API Endpoints
-- [ ] T049 [P] [US2] Implement GET /api/session/count endpoint in backend/src/api/session_reset.rs
-- [ ] T050 [P] [US2] Implement PUT /api/session/count endpoint in backend/src/api/session_reset.rs
-- [ ] T051 [P] [US2] Implement POST /api/session/reset endpoint in backend/src/api/session_reset.rs
-- [ ] T052 [P] [US2] Add request/response validation for session count endpoints
+#### WebSocket Message Procedures
+- [ ] T049 [P] [US2] Implement get_session_count WebSocket message procedure in backend/src/websocket/handlers/session_count.rs
+- [ ] T050 [P] [US2] Implement set_session_count WebSocket message procedure in backend/src/websocket/handlers/session_count.rs
+- [ ] T051 [P] [US2] Implement reset_session WebSocket message procedure in backend/src/websocket/handlers/session_count.rs
+- [ ] T052 [P] [US2] Add message validation and schema definitions for session count procedures
 
 #### Frontend Components
 - [ ] T053 [P] [US2] Create SessionCountDisplay component in frontend/src/components/SessionCountDisplay.tsx
 - [ ] T054 [P] [US2] Add manual session count input UI to SessionCountDisplay component
-- [ ] T055 [P] [US2] Extend dailyResetApi with session count methods in frontend/src/services/dailyResetApi.ts
+- [ ] T055 [P] [US2] Extend dailyResetWebSocket with session count methods in frontend/src/services/dailyResetWebSocket.ts
 - [ ] T056 [P] [US2] Create useSessionCount hook in frontend/src/hooks/useSessionCount.ts
 
 #### Real-time Sync
@@ -175,17 +175,17 @@ description: "Task list for Daily Session Reset feature implementation"
 - [ ] T067 [P] [US3] Add next reset time calculation methods in backend/src/services/daily_reset_service.rs
 - [ ] T068 [P] [US3] Create reset event logging service in backend/src/services/reset_event_service.rs
 
-#### API Endpoints
-- [ ] T069 [P] [US3] Implement GET /api/analytics/daily-stats endpoint in backend/src/api/analytics.rs
-- [ ] T070 [P] [US3] Implement GET /api/session/reset-events endpoint in backend/src/api/analytics.rs
-- [ ] T071 [P] [US3] Add date range filtering and pagination for analytics endpoints
-- [ ] T072 [P] [US3] Add timezone-aware statistics formatting
+#### WebSocket Analytics Procedures
+- [ ] T069 [P] [US3] Implement get_daily_stats WebSocket message procedure in backend/src/websocket/handlers/analytics.rs
+- [ ] T070 [P] [US3] Implement get_reset_events WebSocket message procedure in backend/src/websocket/handlers/analytics.rs
+- [ ] T071 [P] [US3] Add date range filtering and pagination for analytics WebSocket procedures
+- [ ] T072 [P] [US3] Add timezone-aware statistics formatting for WebSocket responses
 
 #### Frontend Components
 - [ ] T073 [P] [US3] Create NextResetDisplay component in frontend/src/components/NextResetDisplay.tsx
 - [ ] T074 [P] [US3] Create DailyStats component in frontend/src/components/DailyStats.tsx
 - [ ] T075 [P] [US3] Create ResetEvents component in frontend/src/components/ResetEvents.tsx
-- [ ] T076 [P] [US3] Add analytics API service in frontend/src/services/analyticsApi.ts
+- [ ] T076 [P] [US3] Add analytics WebSocket service in frontend/src/services/analyticsWebSocket.ts
 
 #### Data Visualization
 - [ ] T077 [US3] Implement countdown timer display in NextResetDisplay component
@@ -220,7 +220,7 @@ description: "Task list for Daily Session Reset feature implementation"
 - [ ] T092 [P] Create comprehensive error recovery procedures
 
 ### Documentation & Deployment
-- [ ] T093 [P] Update API documentation with daily reset endpoints
+- [ ] T093 [P] Update WebSocket documentation with daily reset message procedures
 - [ ] T094 [P] Create user guide for daily reset feature
 - [ ] T095 [P] Add deployment instructions for timezone database updates
 - [ ] T096 [P] Create monitoring and alerting for daily reset failures

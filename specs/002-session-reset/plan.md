@@ -17,8 +17,8 @@ Daily session reset feature adds configurable automatic session count reset at u
 **Testing**: cargo test (backend), Jest/React Testing Library (frontend), mocktime v0.11+ for time mocking
 **Target Platform**: Linux server (backend), Web PWA (frontend), iOS/Android (via React Native)
 **Project Type**: Web application with PWA frontend and Rust backend
-**Performance Goals**: Sub-100ms UI interactions, <200ms API responses, 50+ concurrent timer sessions
-**Constraints**: <200ms API p95, <100MB memory usage, offline-capable with local state persistence, WCAG 2.1 AA accessibility
+**Performance Goals**: Sub-100ms UI interactions, <200ms WebSocket message responses, 50+ concurrent timer sessions
+**Constraints**: <200ms WebSocket message p95, <100MB memory usage, offline-capable with local state persistence, WCAG 2.1 AA accessibility
 **Scale/Scope**: Individual users with multi-device synchronization, single binary deployment
 
 **Technical Decisions** (Phase 0 Complete):
@@ -26,7 +26,7 @@ Daily session reset feature adds configurable automatic session count reset at u
 - Time zone handling: chrono-tz with UTC storage and user timezone preferences
 - Testing: TimeProvider trait with MockTimeProvider for deterministic testing
 - Database: Extended user_configurations table with timezone and reset fields
-- API: RESTful endpoints with WebSocket real-time synchronization
+- Communication: WebSocket-based message procedures for real-time interaction
 
 ## Constitution Check
 
@@ -100,9 +100,12 @@ backend/
 │   │   ├── timezone_service.rs       # Timezone handling
 │   │   ├── scheduling_service.rs     # Background task management
 │   │   └── time_provider.rs          # Time abstraction for testing
-│   ├── api/
-│   │   ├── session_reset.rs          # REST API endpoints
-│   │   └── analytics.rs              # Statistics endpoints
+│   ├── websocket/
+│   │   ├── handlers/
+│   │   │   ├── daily_reset.rs        # Daily reset message handlers
+│   │   │   ├── session_count.rs      # Session count message handlers
+│   │   │   └── analytics.rs          # Analytics message handlers
+│   │   └── messages.rs               # WebSocket message definitions
 │   └── main.rs
 ├── migrations/
 │   └── 002_session_reset.sql         # Database migrations
