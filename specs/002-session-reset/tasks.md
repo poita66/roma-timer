@@ -97,10 +97,10 @@ description: "Task list for Daily Session Reset feature implementation"
 - [X] T033 [P] [US1] Add request/response message schemas for daily reset WebSocket procedures in backend/src/websocket/messages.rs
 
 #### Frontend Components
-- [ ] T034 [P] [US1] Create TimezonePicker component in frontend/src/components/TimezonePicker.tsx
-- [ ] T035 [P] [US1] Create DailyResetConfig component in frontend/src/components/DailyResetConfig.tsx
-- [ ] T036 [US1] Create dailyResetWebSocket service in frontend/src/services/dailyResetWebSocket.ts
-- [ ] T037 [P] [US1] Create useDailyReset hook in frontend/src/hooks/useDailyReset.ts
+- [X] T034 [P] [US1] Create TimezonePicker component in frontend/src/components/TimezonePicker.tsx
+- [X] T035 [P] [US1] Create DailyResetConfig component in frontend/src/components/DailyResetConfig.tsx
+- [X] T036 [US1] Create dailyResetWebSocket service in frontend/src/services/dailyResetWebSocket.ts
+- [X] T037 [P] [US1] Create useDailyReset hook in frontend/src/hooks/useDailyReset.ts
 
 #### Integration and Real-time
 - [ ] T038 [US1] Integrate daily reset service with existing TimerService
